@@ -75,7 +75,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         HirLValue::Temp(phi_temp)
     }
 
-    fn branch_value_target_overrides_for_preds(
+    pub(super) fn branch_value_target_overrides_for_preds(
         &self,
         header: BlockRef,
         preds: &std::collections::BTreeSet<BlockRef>,

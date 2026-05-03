@@ -79,3 +79,64 @@ fn short_circuit_header_call_generate_keeps_single_type_call() {
         generated.source
     );
 }
+
+#[test]
+fn nested_repeat_continue_flag_generate_stays_lua51_structured() {
+    let result = decompile(
+        &crate::support::compile_lua_case(
+            "lua5.1",
+            "tests/lua_cases/regress_06_nested_repeat_continue_flag.lua",
+        ),
+        DecompileOptions {
+            target_stage: DecompileStage::Generate,
+            naming: NamingOptions {
+                mode: NamingMode::DebugLike,
+                debug_like_include_function: true,
+            },
+            ..DecompileOptions::default()
+        },
+    )
+    .expect("nested_repeat_continue_flag generate stage should succeed");
+
+    let generated = result
+        .state
+        .generated
+        .as_ref()
+        .expect("generate stage should provide source");
+    assert!(
+        generated.warnings.is_empty(),
+        "Lua 5.1 output should not need permissive feature warnings:\n{:?}\n{}",
+        generated.warnings,
+        generated.source
+    );
+    assert!(
+        generated.source.contains("repeat") && generated.source.contains("until false"),
+        "outer repeat should stay structured:\n{}",
+        generated.source
+    );
+    assert!(
+        generated.source.contains("if r0_0 == 111 then")
+            && generated.source.contains("elseif r0_0 == 2 then"),
+        "nested repeat should stay attached to the original branch chain:\n{}",
+        generated.source
+    );
+    assert!(
+        generated
+            .source
+            .contains("print(r0_3, r0_4, r0_5)\n            break"),
+        "print arm must still skip the shared continue flag tail:\n{}",
+        generated.source
+    );
+    assert!(
+        generated
+            .source
+            .contains("end\n        r0_6 = true\n    until true"),
+        "shared continue flag tail should be emitted once after the branch chain:\n{}",
+        generated.source
+    );
+    assert!(
+        !generated.source.contains("goto") && !generated.source.contains("::"),
+        "shared linear continuation should not force label/goto fallback:\n{}",
+        generated.source
+    );
+}

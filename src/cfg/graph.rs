@@ -57,6 +57,8 @@ impl GraphAnalysis {
     fn analyze(cfg: &Cfg) -> Self {
         let reachable =
             DenseBlockSet::from_blocks(cfg.blocks.len(), cfg.reachable_blocks.iter().copied());
+        // 计算正向和反向的 RPO，以便后续支配树和后支配树的计算。
+        // Reverse Postorder，逆后序遍历序。
         let rpo = compute_rpo(cfg, &reachable);
         let dominator_tree = compute_dominator_tree(cfg, &rpo);
         let reverse_reachable = compute_reverse_reachable(cfg, &reachable);

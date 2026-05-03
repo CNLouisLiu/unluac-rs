@@ -217,8 +217,10 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                 stmts.extend(loop_escape_stmts);
                 break;
             }
-            if !self.lowering.cfg.reachable_blocks.contains(&block) || self.visited.contains(&block)
-            {
+            if !self.lowering.cfg.reachable_blocks.contains(&block) {
+                return None;
+            }
+            if self.visited.contains(&block) {
                 return None;
             }
 
@@ -1214,7 +1216,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                 return result;
             }
             if !visiting.insert(block) {
-                return false;
+                return true;
             }
 
             let result = lowerer.lowering.cfg.succs[block.index()]
@@ -1288,14 +1290,20 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         };
 
         // 当一条臂本身就是外层 stop 时，另一条臂如果继续使用外层 stop 作为边界，
-        // 会沿 CFG 一直降到自己的 merge 之后，提前 visit 掉外层 stop 也需要消费的
-        // 共享尾部块。此时分支整体仍回到外层 stop，但非 stop 臂只降到自己的 merge。
+        // 可能会沿 CFG 一直降到自己的 merge 之后，提前 visit 掉外层 stop 也需要消费的
+        // 共享尾部块。普通 merge 下非 stop 臂只降到自己的 merge；但 merge 若是当前
+        // loop 的 break/continue 出口，仍要保留外层 stop，让 follow_linear_target 有机会
+        // 把跳向 merge 的边恢复成显式 break/continue。
         if merge != branch_stop
             && sibling_entry == Some(branch_stop)
             && entry != branch_stop
             && entry != merge
         {
-            Some(merge)
+            if self.block_is_active_loop_escape(merge) {
+                Some(branch_stop)
+            } else {
+                Some(merge)
+            }
         } else {
             Some(branch_stop)
         }

@@ -179,6 +179,10 @@ pub(crate) const ALL_CASES: &[LuaCaseMatrixEntry] = &[
         "tests/lua_cases/regress_02_repeat_inner_ref.lua",
         ALL_DIALECTS,
     ),
+    LuaCaseMatrixEntry::new(
+        "tests/lua_cases/regress_06_nested_repeat_continue_flag.lua",
+        PUC_LUA_51,
+    ),
 ];
 
 pub(crate) fn case_health_cases() -> impl Iterator<Item = LuaCaseManifestEntry> {
