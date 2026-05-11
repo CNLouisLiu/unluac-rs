@@ -56,7 +56,7 @@ fn requires_explicit_input_or_source() {
 fn defaults_to_pure_source_output_when_only_source_is_given() {
     let options = parse_args(args(&["--source", "case.lua"])).expect("source should parse");
     assert_eq!(options.source, Some(PathBuf::from("case.lua")));
-    assert_eq!(options.decompile.dialect.as_str(), "lua5.1");
+    assert_eq!(<&'static str>::from(options.decompile.dialect), "lua5.1");
     assert_eq!(options.decompile.target_stage, DecompileStage::Generate);
     assert_eq!(options.decompile.naming.mode, NamingMode::DebugLike);
     assert!(!options.decompile.debug.enable);
@@ -146,12 +146,12 @@ fn short_flags_map_to_the_same_cli_fields() {
         "-n",
         "simple",
         "-g",
-        "best-effort",
+        "strict",
     ]))
     .expect("short flags should parse");
     assert_eq!(options.source, Some(PathBuf::from("case.lua")));
     assert_eq!(options.luac, Some(PathBuf::from("lua54-luac")));
-    assert_eq!(options.decompile.dialect.as_str(), "lua5.4");
+    assert_eq!(<&'static str>::from(options.decompile.dialect), "lua5.4");
     assert_eq!(
         options.decompile.parse.string_encoding,
         "gbk".parse().unwrap()
@@ -165,7 +165,7 @@ fn short_flags_map_to_the_same_cli_fields() {
     assert!(options.decompile.debug.enable);
     assert!(options.decompile.debug.timing);
     assert_eq!(options.decompile.naming.mode, NamingMode::Simple);
-    assert_eq!(options.decompile.generate.mode, GenerateMode::BestEffort);
+    assert_eq!(options.decompile.generate.mode, GenerateMode::Strict);
 }
 
 #[test]
@@ -248,14 +248,14 @@ fn naming_mode_and_bool_options_override_defaults() {
         "--comment",
         "false",
         "--generate-mode",
-        "best-effort",
+        "strict",
     ]))
     .expect("boolish options should parse");
     assert_eq!(options.decompile.naming.mode, NamingMode::Simple);
     assert!(!options.decompile.naming.debug_like_include_function);
     assert!(!options.decompile.generate.conservative_output);
     assert!(!options.decompile.generate.comment);
-    assert_eq!(options.decompile.generate.mode, GenerateMode::BestEffort);
+    assert_eq!(options.decompile.generate.mode, GenerateMode::Strict);
 }
 
 #[test]

@@ -324,7 +324,7 @@ pub fn find_unit_case_spec(
 ) -> Option<UnitCaseSpec> {
     unit_case_specs().into_iter().find(|spec| {
         spec.suite == suite
-            && spec.entry.dialect.as_str() == dialect_label
+            && <&'static str>::from(spec.entry.dialect) == dialect_label
             && spec.entry.path == path
     })
 }
@@ -404,7 +404,7 @@ pub(crate) fn build_case_health_baseline(
     entry: &case_manifest::LuaCaseManifestEntry,
     suite_label: &str,
 ) -> Result<CaseHealthBaseline, TestFailure> {
-    let dialect_label = entry.dialect.as_str();
+    let dialect_label = <&'static str>::from(entry.dialect);
     let toolchain = lua_toolchain(dialect_label).map_err(|error| {
         TestFailure::new(
             FailureKind::RunSourceFailed,
@@ -517,7 +517,7 @@ pub(crate) fn run_case_health(entry: &LuaCaseManifestEntry) -> Result<TestSucces
 pub(crate) fn run_decompile_pipeline_health(
     entry: &LuaCaseManifestEntry,
 ) -> Result<TestSuccess, TestFailure> {
-    let dialect_label = entry.dialect.as_str();
+    let dialect_label = <&'static str>::from(entry.dialect);
     let suite_label = UnitSuite::DecompilePipelineHealth.label();
     let toolchain = lua_toolchain(dialect_label).map_err(|error| {
         TestFailure::new(

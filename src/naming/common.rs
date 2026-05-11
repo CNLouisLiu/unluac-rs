@@ -5,41 +5,19 @@
 //! 每个子模块都从 `assign.rs` 反向依赖，后续继续拆分时边界也更稳定。
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::str::FromStr;
 
 use crate::ast::AstSyntheticLocalId;
 use crate::hir::{HirProtoRef, LocalId, ParamId, TempId, UpvalueId};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 
 /// Naming 模式。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Display, EnumString, IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
 pub enum NamingMode {
     DebugLike,
     #[default]
     Simple,
     Heuristic,
-}
-
-impl NamingMode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::DebugLike => "debug-like",
-            Self::Simple => "simple",
-            Self::Heuristic => "heuristic",
-        }
-    }
-}
-
-impl FromStr for NamingMode {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "debug-like" => Ok(Self::DebugLike),
-            "simple" => Ok(Self::Simple),
-            "heuristic" => Ok(Self::Heuristic),
-            _ => Err(()),
-        }
-    }
 }
 
 /// Naming 选项。
@@ -59,7 +37,8 @@ impl Default for NamingOptions {
 }
 
 /// 命名来源。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
 pub enum NameSource {
     Debug,
     CaptureProvenance,
@@ -74,26 +53,6 @@ pub enum NameSource {
     DebugLike,
     Simple,
     ConflictFallback,
-}
-
-impl NameSource {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Debug => "debug",
-            Self::CaptureProvenance => "capture-provenance",
-            Self::SelfParam => "self-param",
-            Self::LoopRole => "loop-role",
-            Self::FieldName => "field-name",
-            Self::TableShape => "table-shape",
-            Self::BoolShape => "bool-shape",
-            Self::FunctionShape => "function-shape",
-            Self::ResultShape => "result-shape",
-            Self::Discard => "discard",
-            Self::DebugLike => "debug-like",
-            Self::Simple => "simple",
-            Self::ConflictFallback => "conflict-fallback",
-        }
-    }
 }
 
 /// 单个名字槽位的最终结果。

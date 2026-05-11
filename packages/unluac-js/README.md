@@ -148,6 +148,7 @@ Returns the currently supported enum-like values for:
 - `stringEncodings`
 - `stringDecodeModes`
 - `namingModes`
+- `generateModes`
 - `quoteStyles`
 - `tableStyles`
 
@@ -171,6 +172,7 @@ Common `decompile()` options:
 
 `generate` sub-options:
 
+- `mode`: generation mode, `strict` or `permissive`
 - `indentWidth`
 - `maxLineLength`
 - `quoteStyle`
@@ -185,6 +187,7 @@ Current library defaults used by this package:
 - `parse.stringDecodeMode = strict`
 - `naming.mode = debug-like`
 - `naming.debugLikeIncludeFunction = true`
+- `generate.mode = permissive`
 - `generate.indentWidth = 4`
 - `generate.maxLineLength = 100`
 - `generate.quoteStyle = min-escape`

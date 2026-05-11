@@ -144,7 +144,7 @@ Generate and output options:
 | `--table-style` | Table constructor layout style | `balanced` |
 | `--conservative-output` | Whether to prefer conservative source generation | `true` |
 | `--comment` | Whether to emit generate-stage comments and metadata | `true` |
-| `-g`, `--generate-mode` | How to handle syntax not supported by the target dialect | `strict` |
+| `-g`, `--generate-mode` | Generation mode: `strict` stops on unsupported target syntax or errors, `permissive` outputs as much as possible | `permissive` |
 | `--stop-after` | Last pipeline stage to run | `generate` |
 | `-o`, `--output` | Write the final generated source to a file instead of stdout | stdout |
 

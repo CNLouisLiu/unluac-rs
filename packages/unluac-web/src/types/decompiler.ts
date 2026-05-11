@@ -24,7 +24,7 @@ export type UnluacStringDecodeMode = 'strict' | 'lossy'
 export type UnluacNamingMode = 'debug-like' | 'simple' | 'heuristic'
 export type UnluacQuoteStyle = 'prefer-double' | 'prefer-single' | 'min-escape'
 export type UnluacTableStyle = 'compact' | 'balanced' | 'expanded'
-export type UnluacGenerateMode = 'strict' | 'best-effort' | 'permissive'
+export type UnluacGenerateMode = 'strict' | 'permissive'
 
 export interface DecompileOptions {
   dialect: UnluacDialect

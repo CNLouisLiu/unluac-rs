@@ -206,7 +206,7 @@ struct CliArgs {
         help_heading = "Generate"
     )]
     comment: Option<bool>,
-    /// How to handle syntax not supported by the requested target dialect.
+    /// How strictly to handle unsupported target syntax and generation errors.
     #[arg(
         short = 'g',
         long,
@@ -508,7 +508,7 @@ fn compile_source(options: &CliOptions, source: &Path) -> Result<PathBuf, CliErr
     let output_dir = repo_root()
         .join("target")
         .join("unluac-debug")
-        .join(options.decompile.dialect.as_str());
+        .join(<&'static str>::from(options.decompile.dialect));
     fs::create_dir_all(&output_dir).map_err(|source_error| CliError::Io {
         action: "create debug build directory",
         path: output_dir.clone(),
@@ -602,7 +602,7 @@ fn resolve_compiler(options: &CliOptions) -> Result<PathBuf, CliError> {
     let bundled = repo_root()
         .join("lua")
         .join("build")
-        .join(options.decompile.dialect.as_str())
+        .join(<&'static str>::from(options.decompile.dialect))
         .join(bundled_compiler_name(options.decompile.dialect));
     if bundled.exists() {
         return Ok(bundled);

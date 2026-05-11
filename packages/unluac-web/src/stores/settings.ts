@@ -7,7 +7,7 @@
 
 import { defineStore } from 'pinia'
 import { reactive, watch } from 'vue'
-import type { DecompileOptions } from '@/types/decompiler'
+import type { DecompileOptions, UnluacGenerateMode } from '@/types/decompiler'
 
 const STORAGE_KEY = 'unluac-settings'
 
@@ -53,13 +53,21 @@ function loadPersistedOptions(): DecompileOptions {
         parse: { ...defaults.parse, ...parsed.parse },
         readability: { ...defaults.readability, ...parsed.readability },
         naming: { ...defaults.naming, ...parsed.naming },
-        generate: { ...defaults.generate, ...parsed.generate },
+        generate: {
+          ...defaults.generate,
+          ...parsed.generate,
+          mode: normalizeGenerateMode(parsed.generate?.mode, defaults.generate.mode),
+        },
       }
     }
   } catch {
     // localStorage 损坏或不可用时回退默认值
   }
   return defaultOptions()
+}
+
+function normalizeGenerateMode(value: unknown, fallback: UnluacGenerateMode): UnluacGenerateMode {
+  return value === 'strict' || value === 'permissive' ? value : fallback
 }
 
 export const useSettingsStore = defineStore('settings', () => {

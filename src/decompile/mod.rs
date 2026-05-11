@@ -7,12 +7,8 @@ mod contracts;
 mod debug;
 mod error;
 mod options;
-mod output_plan;
 mod pipeline;
 mod state;
-
-#[cfg(test)]
-mod tests;
 
 pub use crate::debug::{DebugColorMode, DebugDetail, DebugFilters, ProtoDepth};
 pub use crate::generate::{GenerateMode, GenerateOptions, QuoteStyle, TableStyle};

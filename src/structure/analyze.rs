@@ -3,8 +3,9 @@
 //! 各类候选的提取规则已经拆到独立模块里，避免结构层继续膨胀成单个巨型文件；
 //! 这里仅保留“按顺序汇总事实并递归处理子 proto”的壳。
 //!
-//! 它依赖 CFG / GraphFacts / Dataflow 已经先算好，并把这些底层事实按固定顺序翻译成
-//! StructureFacts；它不会越权恢复 HIR/AST 语法，只负责调度各个结构 pass 并汇总结果。
+//! 它从主 pipeline 的 `DecompileState` 读取 CFG / GraphFacts / Dataflow 等已经完成的
+//! 产物，并把这些底层事实按固定顺序翻译成 StructureFacts；它不会越权恢复 HIR/AST
+//! 语法，只负责调度各个结构 pass 并汇总结果。
 //!
 //! 例子：
 //! - 一个 proto 如果同时包含 loop、branch 和 short-circuit 候选，这里会先提 loop/
@@ -12,6 +13,7 @@
 //! - 子 proto 会递归走完全相同的结构分析顺序，保证父子层结构事实口径一致
 
 use crate::cfg::{Cfg, CfgGraph, DataflowFacts, GraphFacts};
+use crate::decompile::{DecompileOptions, DecompileState};
 use crate::transformer::LoweredProto;
 
 use super::common::StructureFacts;
@@ -19,8 +21,19 @@ use super::{
     branch_values, branches, goto, helpers, loops, phi_facts, regions, scope, short_circuit,
 };
 
+/// 从主 pipeline 状态中读取根 proto 所需事实，并递归提取结构候选。
+pub fn analyze_structure(state: &DecompileState, _options: &DecompileOptions) -> StructureFacts {
+    analyze_structure_proto(
+        &state.lowered().main,
+        &state.cfg().cfg,
+        state.graph_facts(),
+        state.dataflow(),
+        &state.cfg().children,
+    )
+}
+
 /// 对单个 proto 递归提取结构候选，子 proto 走完全相同的分析顺序。
-pub fn analyze_structure(
+pub(crate) fn analyze_structure_proto(
     proto: &LoweredProto,
     cfg: &Cfg,
     graph_facts: &GraphFacts,
@@ -82,7 +95,7 @@ pub fn analyze_structure(
         .zip(dataflow.children.iter())
         .map(
             |(((child_proto, child_cfg), child_graph_facts), child_dataflow)| {
-                analyze_structure(
+                analyze_structure_proto(
                     child_proto,
                     &child_cfg.cfg,
                     child_graph_facts,

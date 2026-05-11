@@ -23,6 +23,7 @@ export type UnluacStringEncoding =
   | (string & {});
 export type UnluacStringDecodeMode = "strict" | "lossy";
 export type UnluacNamingMode = "debug-like" | "simple" | "heuristic";
+export type UnluacGenerateMode = "strict" | "permissive";
 export type UnluacQuoteStyle = "prefer-double" | "prefer-single" | "min-escape";
 export type UnluacTableStyle = "compact" | "balanced" | "expanded";
 
@@ -46,6 +47,7 @@ export interface UnluacDecompileOptions {
     debugLikeIncludeFunction?: boolean;
   };
   generate?: {
+    mode?: UnluacGenerateMode;
     indentWidth?: number;
     maxLineLength?: number;
     quoteStyle?: UnluacQuoteStyle;
@@ -61,6 +63,7 @@ export interface UnluacSupportedOptionValues {
   stringEncodings: UnluacStringEncoding[];
   stringDecodeModes: UnluacStringDecodeMode[];
   namingModes: UnluacNamingMode[];
+  generateModes: UnluacGenerateMode[];
   quoteStyles: UnluacQuoteStyle[];
   tableStyles: UnluacTableStyle[];
 }

@@ -78,7 +78,6 @@ const namingModeOptions = [
 
 const generateModeOptions = [
   { label: 'strict', value: 'strict' },
-  { label: 'best-effort', value: 'best-effort' },
   { label: 'permissive', value: 'permissive' },
 ]
 

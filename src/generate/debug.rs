@@ -20,7 +20,7 @@ pub fn dump_generate(
 ) -> String {
     let mut output = String::new();
     let _ = writeln!(output, "===== Dump Generate =====");
-    let _ = writeln!(output, "generate detail={}", detail.as_str());
+    let _ = writeln!(output, "generate detail={}", <&'static str>::from(detail));
     let _ = writeln!(output, "target={}", chunk.dialect);
     if filters.proto.is_some() {
         let _ = writeln!(

@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = decompile(&bytes, options)?;
 
     println!("== Debug Input ==");
-    println!("dialect: {}", dialect.as_str());
+    println!("dialect: {}", <&'static str>::from(dialect));
     println!("source: {}", source.display());
     println!("compiler: {}", compiler.display());
     println!("chunk:  {}", chunk.display());
@@ -83,7 +83,7 @@ fn compile_source(
     if !compiler.exists() {
         return Err(format!(
             "missing bundled compiler for {}: {}",
-            dialect.as_str(),
+            <&'static str>::from(dialect),
             compiler.display()
         )
         .into());
@@ -93,7 +93,7 @@ fn compile_source(
         .join("target")
         .join("unluac-debug")
         .join("examples")
-        .join(dialect.as_str());
+        .join(<&'static str>::from(dialect));
     fs::create_dir_all(&output_dir)?;
 
     let file_stem = source
@@ -147,7 +147,7 @@ fn bundled_compiler_path(repo_root: &Path, dialect: DecompileDialect) -> PathBuf
     repo_root
         .join("lua")
         .join("build")
-        .join(dialect.as_str())
+        .join(<&'static str>::from(dialect))
         .join(bundled_compiler_name(dialect))
 }
 

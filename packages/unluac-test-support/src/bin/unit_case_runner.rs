@@ -58,7 +58,7 @@ fn run() -> Result<ExitKind, String> {
                 println!(
                     "{}\t{}\t{}",
                     spec.suite.label(),
-                    spec.entry.dialect.as_str(),
+                    <&'static str>::from(spec.entry.dialect),
                     spec.entry.path
                 );
             }

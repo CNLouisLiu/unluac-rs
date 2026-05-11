@@ -18,7 +18,7 @@ pub fn dump_naming(
     let _ = writeln!(
         output,
         "naming mode={} functions={}",
-        names.mode.as_str(),
+        <&'static str>::from(names.mode),
         names.functions.len()
     );
     if let Some(proto_id) = filters.proto {
@@ -87,7 +87,7 @@ fn write_section(
         } else {
             ""
         };
-        let source = info.source.as_str();
+        let source = <&'static str>::from(info.source);
         let _ = writeln!(
             output,
             "    {prefix}{index} -> {} (source={source}{rename_note})",
@@ -118,7 +118,7 @@ fn write_sparse_section<'a>(
         } else {
             ""
         };
-        let source = info.source.as_str();
+        let source = <&'static str>::from(info.source);
         let _ = writeln!(
             output,
             "    {prefix}{} -> {} (source={source}{rename_note})",

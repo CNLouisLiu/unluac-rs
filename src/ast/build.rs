@@ -53,7 +53,7 @@ impl<'a> AstLowerer<'a> {
     }
 
     /// 仅 Permissive 模式允许用 Error 占位节点替代失败的 lowering；
-    /// Strict 和 BestEffort 都会直接传播错误。
+    /// Strict 会直接传播错误。
     fn should_recover_errors(&self) -> bool {
         self.generate_mode == GenerateMode::Permissive
     }

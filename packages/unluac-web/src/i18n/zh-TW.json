@@ -145,7 +145,7 @@
     },
     "tips": {
       "dialect": "目標 Lua 方言，決定解析器和產生器的行為。CLI: --dialect / -D",
-      "generateMode": "產生器錯誤處理策略。strict: 遇錯即停；best-effort: 嘗試替代語法；permissive: 盡可能輸出。CLI: --generate-mode / -g",
+      "generateMode": "產生器錯誤處理策略。strict: 遇到不支援語法或錯誤時停止；permissive: 盡可能輸出。CLI: --generate-mode / -g",
       "parseMode": "解析器嚴格程度。strict: 嚴格校驗；permissive: 容忍不規範的位元組碼。CLI: --parse-mode / -p",
       "stringEncoding": "字串常數的解碼編碼。CLI: --encoding / -e",
       "stringDecodeMode": "字串解碼失敗時的處理策略。strict: 報錯；lossy: 替換為佔位符。CLI: --decode-mode / -m",

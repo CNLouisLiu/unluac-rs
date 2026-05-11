@@ -8,9 +8,9 @@
 //! 而不是回头重新猜测。
 
 use std::collections::BTreeSet;
-use std::fmt;
 
 use crate::hir::{HirLabelId, HirProtoRef, LocalId, ParamId, TempId, UpvalueId};
+use strum_macros::{Display, IntoStaticStr};
 
 /// AST 内部物化出来的保守局部绑定。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -199,54 +199,42 @@ pub struct AstDialectCaps {
 }
 
 /// AST/Generate 关心的可选语法特性。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash, Display, IntoStaticStr)]
 pub enum AstFeature {
+    #[strum(serialize = "goto")]
     GotoLabel,
+    #[strum(serialize = "continue")]
     ContinueStmt,
+    #[strum(serialize = "local<const>")]
     LocalConst,
+    #[strum(serialize = "local<close>")]
     LocalClose,
+    #[strum(serialize = "global")]
     GlobalDecl,
+    #[strum(serialize = "global<const>")]
     GlobalConst,
 }
 
-impl AstFeature {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::GotoLabel => "goto",
-            Self::ContinueStmt => "continue",
-            Self::LocalConst => "local<const>",
-            Self::LocalClose => "local<close>",
-            Self::GlobalDecl => "global",
-            Self::GlobalConst => "global<const>",
-        }
-    }
-}
-
 /// 当前支持的目标方言版本。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, IntoStaticStr)]
 pub enum AstDialectVersion {
+    #[strum(serialize = "lua5.1")]
     Lua51,
+    #[strum(serialize = "lua5.2")]
     Lua52,
+    #[strum(serialize = "lua5.3")]
     Lua53,
+    #[strum(serialize = "lua5.4")]
     Lua54,
+    #[strum(serialize = "lua5.5")]
     Lua55,
+    #[strum(serialize = "luajit")]
     LuaJit,
+    #[strum(serialize = "luau")]
     Luau,
 }
 
 impl AstDialectVersion {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Lua51 => "lua5.1",
-            Self::Lua52 => "lua5.2",
-            Self::Lua53 => "lua5.3",
-            Self::Lua54 => "lua5.4",
-            Self::Lua55 => "lua5.5",
-            Self::LuaJit => "luajit",
-            Self::Luau => "luau",
-        }
-    }
-
     /// 判断 `name` 是否是该方言版本下的保留关键字。
     ///
     /// `goto`、`continue`、`global` 是 dialect-specific 的：
@@ -303,12 +291,6 @@ fn is_base_lua_keyword(name: &str) -> bool {
             | "until"
             | "while"
     )
-}
-
-impl fmt::Display for AstDialectVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
 }
 
 impl AstTargetDialect {

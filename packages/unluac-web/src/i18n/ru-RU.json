@@ -145,7 +145,7 @@
     "tips": {
       "dialect": "Целевой диалект Lua, влияет на поведение парсера и генератора. CLI: --dialect / -D",
       "advanced": "Расширенные",
-      "generateMode": "Стратегия обработки ошибок. strict: остановка при ошибке; best-effort: попытка альтернативного синтаксиса; permissive: вывод максимально возможного. CLI: --generate-mode / -g",
+      "generateMode": "Стратегия обработки ошибок. strict: остановка при неподдерживаемом синтаксисе или ошибке; permissive: вывод максимально возможного. CLI: --generate-mode / -g",
       "parseMode": "Строгость парсера. strict: строгая валидация; permissive: допускать нестандартный байткод. CLI: --parse-mode / -p",
       "stringEncoding": "Кодировка для декодирования строковых констант. CLI: --encoding / -e",
       "stringDecodeMode": "Поведение при ошибке декодирования строки. strict: ошибка; lossy: замена заполнителями. CLI: --decode-mode / -m",

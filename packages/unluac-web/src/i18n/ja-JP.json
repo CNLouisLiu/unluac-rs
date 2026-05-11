@@ -145,7 +145,7 @@
     },
     "tips": {
       "dialect": "対象の Lua ダイアレクト。パーサーとジェネレーターの動作に影響します。CLI: --dialect / -D",
-      "generateMode": "エラー処理戦略。strict: エラーで停止；best-effort: 代替構文を試行；permissive: 可能な限り出力。CLI: --generate-mode / -g",
+      "generateMode": "エラー処理戦略。strict: 非対応構文またはエラーで停止；permissive: 可能な限り出力。CLI: --generate-mode / -g",
       "parseMode": "パーサーの厳密さ。strict: 厳密な検証；permissive: 非標準バイトコードを許容。CLI: --parse-mode / -p",
       "stringEncoding": "文字列定数のデコードに使用するエンコーディング。CLI: --encoding / -e",
       "stringDecodeMode": "文字列デコード失敗時の動作。strict: エラー；lossy: プレースホルダーで置換。CLI: --decode-mode / -m",

@@ -145,7 +145,7 @@
     },
     "tips": {
       "dialect": "Dialecte Lua cible, affecte le comportement de l'analyseur et du générateur. CLI : --dialect / -D",
-      "generateMode": "Stratégie de gestion des erreurs. strict : arrêt en cas d'erreur ; best-effort : essayer une syntaxe alternative ; permissive : produire autant que possible. CLI : --generate-mode / -g",
+      "generateMode": "Stratégie de gestion des erreurs. strict : arrêt sur syntaxe non prise en charge ou erreur ; permissive : produire autant que possible. CLI : --generate-mode / -g",
       "parseMode": "Rigueur de l'analyseur. strict : validation stricte ; permissive : tolérer le bytecode non standard. CLI : --parse-mode / -p",
       "stringEncoding": "Encodage pour le décodage des constantes de chaînes. CLI : --encoding / -e",
       "stringDecodeMode": "Comportement en cas d'échec du décodage de chaîne. strict : erreur ; lossy : remplacer par des marqueurs. CLI : --decode-mode / -m",

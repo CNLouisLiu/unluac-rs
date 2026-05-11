@@ -13,7 +13,7 @@ use crate::hir::common::{
 };
 use crate::hir::dump_hir;
 use crate::parser::{ParseOptions, parse_lua51_chunk, parse_lua55_chunk, parse_luau_chunk};
-use crate::structure::analyze_structure;
+use crate::structure::analyze_structure_proto;
 use crate::transformer::lower_chunk;
 
 #[test]
@@ -163,7 +163,7 @@ fn lua55_fixed_multiresult_call_keeps_all_fixed_defs_before_simplify() {
         "lua5.5 const gate call should define both fixed result registers",
     );
 
-    let structure = analyze_structure(
+    let structure = analyze_structure_proto(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,
@@ -309,7 +309,7 @@ fn lower_luau_fixture_to_hir(source_relative: &str) -> HirModule {
         &graph_facts,
         &cfg_graph.children,
     );
-    let structure = analyze_structure(
+    let structure = analyze_structure_proto(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,
@@ -351,7 +351,7 @@ fn lower_lua51_fixture_to_hir(source_relative: &str) -> HirModule {
         &graph_facts,
         &cfg_graph.children,
     );
-    let structure = analyze_structure(
+    let structure = analyze_structure_proto(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,
@@ -393,7 +393,7 @@ fn lower_lua55_fixture_to_hir(source_relative: &str) -> HirModule {
         &graph_facts,
         &cfg_graph.children,
     );
-    let structure = analyze_structure(
+    let structure = analyze_structure_proto(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,

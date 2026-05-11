@@ -4,32 +4,28 @@
 //! `unit` 和 `regression` 再从这份矩阵里展开成具体的 `(case, dialect)` 测试单元，
 //! 这样后续给 common case 显式挂多个 dialect 时，不需要回到“每行一个组合”的散乱写法。
 
+use strum_macros::{Display, IntoStaticStr};
 use unluac::decompile::DecompileDialect;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, IntoStaticStr)]
 pub enum LuaCaseDialect {
+    #[strum(serialize = "lua5.1")]
     Lua51,
+    #[strum(serialize = "lua5.2")]
     Lua52,
+    #[strum(serialize = "lua5.3")]
     Lua53,
+    #[strum(serialize = "lua5.4")]
     Lua54,
+    #[strum(serialize = "lua5.5")]
     Lua55,
+    #[strum(serialize = "luajit")]
     Luajit,
+    #[strum(serialize = "luau")]
     Luau,
 }
 
 impl LuaCaseDialect {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Lua51 => "lua5.1",
-            Self::Lua52 => "lua5.2",
-            Self::Lua53 => "lua5.3",
-            Self::Lua54 => "lua5.4",
-            Self::Lua55 => "lua5.5",
-            Self::Luajit => "luajit",
-            Self::Luau => "luau",
-        }
-    }
-
     pub(crate) const fn decompile_dialect(self) -> Option<DecompileDialect> {
         match self {
             Self::Lua51 => Some(DecompileDialect::Lua51),

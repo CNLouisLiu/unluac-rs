@@ -23,5 +23,4 @@ pub use common::{
     HirUnresolvedExpr, HirUnstructured, HirWhile, LocalId, ParamId, TempId, UpvalueId,
 };
 pub use debug::dump_hir;
-pub(crate) use simplify::PassDumpConfig;
 pub(crate) use simplify::synthesize_readable_pure_logical_expr;

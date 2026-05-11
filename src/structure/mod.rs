@@ -17,6 +17,8 @@ mod scope;
 mod short_circuit;
 
 pub use analyze::analyze_structure;
+#[cfg(test)]
+pub(crate) use analyze::analyze_structure_proto;
 pub use common::{
     BranchCandidate, BranchKind, BranchRegionFact, BranchValueMergeArm, BranchValueMergeCandidate,
     BranchValueMergeValue, GenericPhiMaterialization, GotoReason, GotoRequirement, LoopCandidate,

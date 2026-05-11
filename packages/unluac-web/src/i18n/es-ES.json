@@ -145,7 +145,7 @@
     "tips": {
       "dialect": "Dialecto Lua de destino, afecta el comportamiento del analizador y generador. CLI: --dialect / -D",
       "advanced": "Avanzado",
-      "generateMode": "Estrategia de manejo de errores. strict: detener en error; best-effort: intentar sintaxis alternativa; permissive: generar lo máximo posible. CLI: --generate-mode / -g",
+      "generateMode": "Estrategia de manejo de errores. strict: detener en sintaxis no compatible o error; permissive: generar lo máximo posible. CLI: --generate-mode / -g",
       "parseMode": "Nivel de rigor del analizador. strict: validación estricta; permissive: tolerar bytecode no estándar. CLI: --parse-mode / -p",
       "stringEncoding": "Codificación para decodificar constantes de cadena. CLI: --encoding / -e",
       "stringDecodeMode": "Comportamiento ante fallo de decodificación de cadenas. strict: error; lossy: reemplazar con marcadores. CLI: --decode-mode / -m",

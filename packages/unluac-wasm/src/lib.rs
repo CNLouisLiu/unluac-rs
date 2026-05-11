@@ -12,7 +12,7 @@ use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 
 use unluac::decompile::{
-    DecompileDialect, DecompileOptions, NamingMode, QuoteStyle, TableStyle,
+    DecompileDialect, DecompileOptions, GenerateMode, NamingMode, QuoteStyle, TableStyle,
     decompile as run_decompile,
 };
 use unluac::parser::{ParseMode, StringDecodeMode, StringEncoding};
@@ -76,6 +76,7 @@ struct WasmSupportedOptionValues {
     string_encodings: Vec<&'static str>,
     string_decode_modes: Vec<&'static str>,
     naming_modes: Vec<&'static str>,
+    generate_modes: Vec<&'static str>,
     quote_styles: Vec<&'static str>,
     table_styles: Vec<&'static str>,
 }
@@ -136,6 +137,7 @@ pub fn supported_option_values() -> Result<JsValue, JsValue> {
         string_encodings: string_encoding_labels(),
         string_decode_modes: string_decode_mode_labels(),
         naming_modes: naming_mode_labels(),
+        generate_modes: generate_mode_labels(),
         quote_styles: quote_style_labels(),
         table_styles: table_style_labels(),
     })
@@ -308,14 +310,14 @@ fn dialect_labels() -> Vec<&'static str> {
         DecompileDialect::Luau,
     ]
     .into_iter()
-    .map(DecompileDialect::as_str)
+    .map(<&'static str>::from)
     .collect()
 }
 
 fn parse_mode_labels() -> Vec<&'static str> {
     [ParseMode::Strict, ParseMode::Permissive]
         .into_iter()
-        .map(ParseMode::as_str)
+        .map(<&'static str>::from)
         .collect()
 }
 
@@ -343,7 +345,7 @@ fn string_encoding_labels() -> Vec<&'static str> {
 fn string_decode_mode_labels() -> Vec<&'static str> {
     [StringDecodeMode::Strict, StringDecodeMode::Lossy]
         .into_iter()
-        .map(StringDecodeMode::as_str)
+        .map(<&'static str>::from)
         .collect()
 }
 
@@ -354,8 +356,15 @@ fn naming_mode_labels() -> Vec<&'static str> {
         NamingMode::Heuristic,
     ]
     .into_iter()
-    .map(NamingMode::as_str)
+    .map(<&'static str>::from)
     .collect()
+}
+
+fn generate_mode_labels() -> Vec<&'static str> {
+    [GenerateMode::Strict, GenerateMode::Permissive]
+        .into_iter()
+        .map(<&'static str>::from)
+        .collect()
 }
 
 fn quote_style_labels() -> Vec<&'static str> {
@@ -365,7 +374,7 @@ fn quote_style_labels() -> Vec<&'static str> {
         QuoteStyle::MinEscape,
     ]
     .into_iter()
-    .map(QuoteStyle::as_str)
+    .map(<&'static str>::from)
     .collect()
 }
 
@@ -376,7 +385,7 @@ fn table_style_labels() -> Vec<&'static str> {
         TableStyle::Expanded,
     ]
     .into_iter()
-    .map(TableStyle::as_str)
+    .map(<&'static str>::from)
     .collect()
 }
 

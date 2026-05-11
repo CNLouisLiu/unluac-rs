@@ -5,7 +5,7 @@
 
 use crate::ast::AstDialectVersion;
 use crate::hir::{HirProtoRef, ProtoLineRange, ProtoSignature};
-use std::str::FromStr;
+use strum_macros::{Display, EnumString, IntoStaticStr};
 
 /// 最终生成的源码结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,44 +88,20 @@ pub struct GenerateFunctionCommentMetadata {
 /// 输出层在遇到目标方言不支持的语法时该如何处理。
 ///
 /// - `Permissive`：无论如何都尝试输出代码，无法恢复的错误通过 Lua 注释占位。
-/// - `BestEffort`：仅在当前 dialect 不支持某语法时，尝试替换为等价语法（如 continue → goto-label）。
-///   遇到反编译阶段本身的错误（如 HIR 残留节点）依然终止。
 /// - `Strict`：遇到任何反编译错误或目标 dialect 不支持的语法时直接报错并终止。
 ///
 /// 库层默认为 `Strict`（最安全的编程接口约定）；CLI 层默认为 `Permissive`。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Display, EnumString, IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
 pub enum GenerateMode {
     #[default]
     Strict,
-    BestEffort,
     Permissive,
 }
 
-impl GenerateMode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Strict => "strict",
-            Self::BestEffort => "best-effort",
-            Self::Permissive => "permissive",
-        }
-    }
-}
-
-impl FromStr for GenerateMode {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "strict" => Ok(Self::Strict),
-            "best-effort" | "best_effort" | "besteffort" => Ok(Self::BestEffort),
-            "permissive" => Ok(Self::Permissive),
-            _ => Err(()),
-        }
-    }
-}
-
 /// 字符串引号策略。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Display, EnumString, IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
 pub enum QuoteStyle {
     PreferDouble,
     PreferSingle,
@@ -133,57 +109,12 @@ pub enum QuoteStyle {
     MinEscape,
 }
 
-impl QuoteStyle {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::PreferDouble => "prefer-double",
-            Self::PreferSingle => "prefer-single",
-            Self::MinEscape => "min-escape",
-        }
-    }
-}
-
-impl FromStr for QuoteStyle {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "prefer-double" => Ok(Self::PreferDouble),
-            "prefer-single" => Ok(Self::PreferSingle),
-            "min-escape" => Ok(Self::MinEscape),
-            _ => Err(()),
-        }
-    }
-}
-
 /// 表构造器布局策略。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Display, EnumString, IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
 pub enum TableStyle {
     Compact,
     #[default]
     Balanced,
     Expanded,
-}
-
-impl TableStyle {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Compact => "compact",
-            Self::Balanced => "balanced",
-            Self::Expanded => "expanded",
-        }
-    }
-}
-
-impl FromStr for TableStyle {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "compact" => Ok(Self::Compact),
-            "balanced" => Ok(Self::Balanced),
-            "expanded" => Ok(Self::Expanded),
-            _ => Err(()),
-        }
-    }
 }

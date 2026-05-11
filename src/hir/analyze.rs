@@ -15,13 +15,9 @@ mod tests;
 
 use self::lower::{ChildAnalyses, LowerArtifacts, lower_proto};
 use super::simplify::{PassDumpConfig, simplify_hir};
-use crate::cfg::{CfgGraph, DataflowFacts, GraphFacts};
-use crate::generate::GenerateMode;
+use crate::decompile::{DecompileOptions, DecompileState};
 use crate::hir::common::HirModule;
-use crate::readability::ReadabilityOptions;
-use crate::structure::StructureFacts;
 use crate::timing::TimingCollector;
-use crate::transformer::LoweredChunk;
 
 use self::exprs::lower_branch_cond;
 use self::helpers::{assign_stmt, branch_stmt, build_label_map_for_summary, goto_block};
@@ -31,33 +27,25 @@ use self::lower::{
 };
 
 /// 对整个 lowered chunk 递归构造 HIR。
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn analyze_hir(
-    chunk: &LoweredChunk,
-    cfg_graph: &CfgGraph,
-    graph_facts: &GraphFacts,
-    dataflow: &DataflowFacts,
-    structure: &StructureFacts,
+    state: &DecompileState,
+    options: &DecompileOptions,
     timings: &TimingCollector,
-    readability: ReadabilityOptions,
-    generate_mode: GenerateMode,
-    dialect: crate::ast::AstDialectVersion,
-    dump_config: &PassDumpConfig,
 ) -> HirModule {
     let child_analyses = ChildAnalyses {
-        cfg_graphs: &cfg_graph.children,
-        graph_facts: &graph_facts.children,
-        dataflow: &dataflow.children,
-        structure: &structure.children,
+        cfg_graphs: &state.cfg().children,
+        graph_facts: &state.graph_facts().children,
+        dataflow: &state.dataflow().children,
+        structure: &state.structure_facts().children,
     };
     let mut artifacts = LowerArtifacts::default();
     let entry = timings.record("lower", || {
         lower_proto(
-            &chunk.main,
-            &cfg_graph.cfg,
-            graph_facts,
-            dataflow,
-            structure,
+            &state.lowered().main,
+            &state.cfg().cfg,
+            state.graph_facts(),
+            state.dataflow(),
+            state.structure_facts(),
             child_analyses,
             &mut artifacts,
         )
@@ -68,15 +56,20 @@ pub(crate) fn analyze_hir(
         protos: artifacts.protos,
     };
 
+    let dump_config = PassDumpConfig {
+        pass_names: options.debug.dump_passes.clone(),
+        filters: options.debug.filters,
+    };
+
     timings.record("simplify", || {
         simplify_hir(
             &mut module,
-            readability,
+            options.readability,
             timings,
             &artifacts.promotion_facts,
-            generate_mode,
-            dialect,
-            dump_config,
+            options.generate.mode,
+            options.dialect.into(),
+            &dump_config,
         );
     });
     module

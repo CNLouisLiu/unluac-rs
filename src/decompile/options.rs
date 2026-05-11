@@ -3,8 +3,6 @@
 //! 入口层集中补默认值，比把默认逻辑散在各阶段里更稳；后续阶段变多后，
 //! 仍然只需要维护这一处归一化逻辑。
 
-use std::{fmt, str::FromStr};
-
 use crate::ast::AstDialectVersion;
 use crate::generate::GenerateOptions;
 use crate::naming::{NamingMode, NamingOptions};
@@ -14,36 +12,32 @@ use crate::parser::{
     parse_luau_chunk,
 };
 use crate::readability::ReadabilityOptions;
+use strum_macros::{Display, EnumString, IntoStaticStr};
 
 use super::debug::DebugOptions;
 use super::state::DecompileStage;
 
 /// 调用方请求解析的目标 dialect。
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Display, EnumString, IntoStaticStr)]
 pub enum DecompileDialect {
     #[default]
+    #[strum(serialize = "lua5.1", serialize = "lua51")]
     Lua51,
+    #[strum(serialize = "lua5.2", serialize = "lua52")]
     Lua52,
+    #[strum(serialize = "lua5.3", serialize = "lua53")]
     Lua53,
+    #[strum(serialize = "lua5.4", serialize = "lua54")]
     Lua54,
+    #[strum(serialize = "lua5.5", serialize = "lua55")]
     Lua55,
+    #[strum(serialize = "luajit")]
     Luajit,
+    #[strum(serialize = "luau")]
     Luau,
 }
 
 impl DecompileDialect {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Lua51 => "lua5.1",
-            Self::Lua52 => "lua5.2",
-            Self::Lua53 => "lua5.3",
-            Self::Lua54 => "lua5.4",
-            Self::Lua55 => "lua5.5",
-            Self::Luajit => "luajit",
-            Self::Luau => "luau",
-        }
-    }
-
     /// 按 dialect 分派到对应的字节码 parser。
     pub fn parse_chunk(
         self,
@@ -58,29 +52,6 @@ impl DecompileDialect {
             Self::Lua55 => parse_lua55_chunk(bytes, options),
             Self::Luajit => parse_luajit_chunk(bytes, options),
             Self::Luau => parse_luau_chunk(bytes, options),
-        }
-    }
-}
-
-impl fmt::Display for DecompileDialect {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for DecompileDialect {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "lua5.1" | "lua51" => Ok(Self::Lua51),
-            "lua5.2" | "lua52" => Ok(Self::Lua52),
-            "lua5.3" | "lua53" => Ok(Self::Lua53),
-            "lua5.4" | "lua54" => Ok(Self::Lua54),
-            "lua5.5" | "lua55" => Ok(Self::Lua55),
-            "luajit" => Ok(Self::Luajit),
-            "luau" => Ok(Self::Luau),
-            _ => Err(()),
         }
     }
 }

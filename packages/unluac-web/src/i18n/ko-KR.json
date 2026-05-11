@@ -145,7 +145,7 @@
     "tips": {
       "dialect": "대상 Lua 방언으로, 파서와 생성기의 동작에 영향을 줍니다. CLI: --dialect / -D",
       "advanced": "고급",
-      "generateMode": "오류 처리 전략. strict: 오류 시 중단; best-effort: 대체 구문 시도; permissive: 가능한 한 많이 출력. CLI: --generate-mode / -g",
+      "generateMode": "오류 처리 전략. strict: 지원되지 않는 구문이나 오류 시 중단; permissive: 가능한 한 많이 출력. CLI: --generate-mode / -g",
       "parseMode": "파서 엄격도. strict: 엄격한 검증; permissive: 비표준 바이트코드 허용. CLI: --parse-mode / -p",
       "stringEncoding": "문자열 상수 디코딩에 사용할 인코딩. CLI: --encoding / -e",
       "stringDecodeMode": "문자열 디코드 실패 시 동작. strict: 오류; lossy: 플레이스홀더로 대체. CLI: --decode-mode / -m",

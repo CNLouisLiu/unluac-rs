@@ -17,11 +17,12 @@ pub use focus::{
     compute_focus_plan, format_breadcrumb, format_proto_summary_row,
 };
 
-use std::io::IsTerminal;
-use std::{fmt, str::FromStr};
+use std::{fmt, io::IsTerminal};
+use strum_macros::{Display, EnumString, IntoStaticStr};
 
 /// 调试输出详细程度。
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Display, EnumString, IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
 pub enum DebugDetail {
     Summary,
     #[default]
@@ -29,37 +30,9 @@ pub enum DebugDetail {
     Verbose,
 }
 
-impl DebugDetail {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Summary => "summary",
-            Self::Normal => "normal",
-            Self::Verbose => "verbose",
-        }
-    }
-}
-
-impl fmt::Display for DebugDetail {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for DebugDetail {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "summary" => Ok(Self::Summary),
-            "normal" => Ok(Self::Normal),
-            "verbose" => Ok(Self::Verbose),
-            _ => Err(()),
-        }
-    }
-}
-
 /// 调试输出颜色策略。
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Display, EnumString, IntoStaticStr)]
+#[strum(serialize_all = "kebab-case")]
 pub enum DebugColorMode {
     #[default]
     Auto,
@@ -68,38 +41,11 @@ pub enum DebugColorMode {
 }
 
 impl DebugColorMode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Auto => "auto",
-            Self::Always => "always",
-            Self::Never => "never",
-        }
-    }
-
     pub(crate) fn enabled(self) -> bool {
         match self {
             Self::Auto => std::io::stdout().is_terminal(),
             Self::Always => true,
             Self::Never => false,
-        }
-    }
-}
-
-impl fmt::Display for DebugColorMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for DebugColorMode {
-    type Err = ();
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "auto" => Ok(Self::Auto),
-            "always" => Ok(Self::Always),
-            "never" => Ok(Self::Never),
-            _ => Err(()),
         }
     }
 }
