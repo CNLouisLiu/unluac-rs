@@ -4,9 +4,9 @@
 
 use crate::ast::{
     AstAssign, AstBinaryExpr, AstBinaryOpKind, AstBlock, AstCallExpr, AstCallKind, AstCallStmt,
-    AstDialectVersion, AstExpr, AstGlobalName, AstGoto, AstIf, AstLValue, AstLabel, AstLabelId,
-    AstLocalBinding, AstLocalDecl, AstLogicalExpr, AstModule, AstNameRef, AstReturn, AstStmt,
-    AstTargetDialect, AstUnaryExpr, AstUnaryOpKind,
+    AstExpr, AstGlobalName, AstGoto, AstIf, AstLValue, AstLabel, AstLabelId, AstLocalBinding,
+    AstLocalDecl, AstLogicalExpr, AstModule, AstNameRef, AstReturn, AstStmt, AstTargetDialect,
+    AstUnaryExpr, AstUnaryOpKind, DecompileDialect,
 };
 use crate::hir::{LocalId, ParamId};
 
@@ -36,7 +36,7 @@ fn flips_negative_truthy_ternary_to_positive_polarity() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -86,7 +86,7 @@ fn lifts_terminating_return_else_branch_into_guard_return_shape() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -132,7 +132,7 @@ fn lifts_terminating_else_branch_by_negating_condition() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -192,7 +192,7 @@ fn flips_terminal_if_before_empty_return_into_guard_return() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -253,7 +253,7 @@ fn wraps_lifted_tail_with_do_block_when_branch_declares_local() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -296,7 +296,7 @@ fn collapses_nested_guard_if_chain_into_single_short_circuit_condition() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -349,7 +349,7 @@ fn removes_empty_else_block_from_positive_if() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -393,7 +393,7 @@ fn flips_empty_then_else_into_positive_if_without_empty_else() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -453,7 +453,7 @@ fn folds_terminal_goto_shell_back_into_if_else() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua54),
+            target: AstTargetDialect::new(DecompileDialect::Lua54),
             options: Default::default(),
         }
     ));
@@ -518,7 +518,7 @@ fn folds_single_entry_guard_goto_label_run_into_plain_if_body() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua54),
+            target: AstTargetDialect::new(DecompileDialect::Lua54),
             options: Default::default(),
         }
     ));
@@ -574,7 +574,7 @@ fn keeps_guard_label_when_exit_label_has_multiple_goto_sources() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua54),
+            target: AstTargetDialect::new(DecompileDialect::Lua54),
             options: Default::default(),
         }
     ));

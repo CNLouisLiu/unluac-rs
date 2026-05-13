@@ -180,7 +180,7 @@ pub(super) fn simplify_hir(
     timings: &TimingCollector,
     promotion_facts: &[ProtoPromotionFacts],
     generate_mode: GenerateMode,
-    dialect: crate::ast::AstDialectVersion,
+    dialect: crate::ast::DecompileDialect,
     dump_config: &PassDumpConfig,
 ) {
     let empty_facts = ProtoPromotionFacts::default();

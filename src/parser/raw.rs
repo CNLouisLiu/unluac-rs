@@ -4,6 +4,8 @@
 //! dialect 分派点；某个 dialect 专属的 opcode、operand、extra 结构
 //! 会继续下沉到各自目录里，避免公共模型被单一 dialect 的细节撑大。
 
+use crate::decompile::DecompileDialect;
+
 use super::StringEncoding;
 use super::dialect::lua51::{
     Lua51ConstPoolExtra, Lua51DebugExtra, Lua51HeaderExtra, Lua51InstrExtra, Lua51Opcode,
@@ -46,7 +48,7 @@ pub struct RawChunk {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChunkHeader {
     pub dialect: Dialect,
-    pub version: DialectVersion,
+    pub version: DecompileDialect,
     pub layout: ChunkLayout,
     pub extra: DialectHeaderExtra,
     pub origin: Origin,
@@ -119,18 +121,6 @@ impl ChunkHeader {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Dialect {
     PucLua,
-    LuaJit,
-    Luau,
-}
-
-/// dialect family 里的具体字节码版本。
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum DialectVersion {
-    Lua51,
-    Lua52,
-    Lua53,
-    Lua54,
-    Lua55,
     LuaJit,
     Luau,
 }

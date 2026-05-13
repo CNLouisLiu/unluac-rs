@@ -5,6 +5,7 @@
 //! 也变成 `lineinfo + abslineinfo` 两段式。这里按真实格式显式实现，避免把这些
 //! 差异硬塞回 5.3 的读取路径。
 
+use crate::decompile::DecompileDialect;
 use crate::parser::dialect::puc_lua::{
     AbsDebugDriver, AbsLineInfoConfig, LUA54_LUAC_DATA, LUA54_LUAC_INT, LUA54_LUAC_NUM,
     PucLuaLayout, PucLuaProtoSections, build_raw_string, count_u8, decode_instruction_word_54,
@@ -19,10 +20,10 @@ use crate::parser::error::ParseError;
 use crate::parser::options::ParseOptions;
 use crate::parser::raw::{
     ChunkHeader, ChunkLayout, Dialect, DialectConstPoolExtra, DialectDebugExtra,
-    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, DialectVersion,
-    Origin, ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool, RawConstPoolCommon,
-    RawDebugInfo, RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto,
-    RawString, RawUpvalueInfo, RawUpvalueInfoCommon, Span,
+    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, Origin,
+    ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool, RawConstPoolCommon, RawDebugInfo,
+    RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto, RawString,
+    RawUpvalueInfo, RawUpvalueInfoCommon, Span,
 };
 use crate::parser::reader::BinaryReader;
 
@@ -190,7 +191,7 @@ impl Lua54Parser {
 
         Ok(ChunkHeader {
             dialect: Dialect::PucLua,
-            version: DialectVersion::Lua54,
+            version: DecompileDialect::Lua54,
             layout: ChunkLayout::PucLua(PucLuaChunkLayout {
                 format: LUA54_FORMAT,
                 endianness,

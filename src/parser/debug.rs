@@ -1,10 +1,12 @@
 //! 这个文件承载 parser 层对外暴露的调试入口。
 //!
-//! 具体某个 dialect 的 dump 逻辑放在各自目录里，这里只负责根据解析结果做
-//! 分派；另外共享 `ParserProtoEntry` 与 `build_parser_summary_row`，
-//! 让各 dialect 在构造 elided 占位行时用同一套字段语义（lines/instrs/children）。
+//! 具体某个 dialect 的 dump 逻辑放在各自目录里，这里只负责从主 pipeline state
+//! 读取 parser 产物并根据解析结果做分派；另外共享 `ParserProtoEntry` 与
+//! `build_parser_summary_row`，让各 dialect 在构造 elided 占位行时用同一套字段语义
+//! （lines/instrs/children）。
 
-use crate::debug::{DebugColorMode, DebugDetail, DebugFilters, ProtoSummaryRow};
+use crate::debug::{DebugColorMode, DebugDetail, DebugFilters, ProtoSummaryRow, define_stage_dump};
+use crate::decompile::DecompileDialect;
 
 use super::dialect::lua51;
 use super::dialect::lua52;
@@ -13,23 +15,34 @@ use super::dialect::lua54;
 use super::dialect::lua55;
 use super::dialect::luajit;
 use super::dialect::luau;
-use super::{DialectVersion, RawChunk, RawProto};
+use super::{RawChunk, RawProto};
+
+define_stage_dump! {
+    /// Parser 阶段的调试导出。
+    pub fn dump_parser(state, options) => Parse,
+        dump_parser_chunk(
+            state.raw_chunk.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
 
 /// 根据 chunk 的实际 dialect 分派到对应的 parser dump 实现。
-pub fn dump_parser(
+fn dump_parser_chunk(
     chunk: &RawChunk,
     detail: DebugDetail,
     filters: &DebugFilters,
     color: DebugColorMode,
 ) -> String {
     match chunk.header.version {
-        DialectVersion::Lua51 => lua51::dump_chunk(chunk, detail, filters, color),
-        DialectVersion::Lua52 => lua52::dump_chunk(chunk, detail, filters, color),
-        DialectVersion::Lua53 => lua53::dump_chunk(chunk, detail, filters, color),
-        DialectVersion::Lua54 => lua54::dump_chunk(chunk, detail, filters, color),
-        DialectVersion::Lua55 => lua55::dump_chunk(chunk, detail, filters, color),
-        DialectVersion::LuaJit => luajit::dump_chunk(chunk, detail, filters, color),
-        DialectVersion::Luau => luau::dump_chunk(chunk, detail, filters, color),
+        DecompileDialect::Lua51 => lua51::dump_chunk(chunk, detail, filters, color),
+        DecompileDialect::Lua52 => lua52::dump_chunk(chunk, detail, filters, color),
+        DecompileDialect::Lua53 => lua53::dump_chunk(chunk, detail, filters, color),
+        DecompileDialect::Lua54 => lua54::dump_chunk(chunk, detail, filters, color),
+        DecompileDialect::Lua55 => lua55::dump_chunk(chunk, detail, filters, color),
+        DecompileDialect::Luajit => luajit::dump_chunk(chunk, detail, filters, color),
+        DecompileDialect::Luau => luau::dump_chunk(chunk, detail, filters, color),
     }
 }
 

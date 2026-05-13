@@ -4,6 +4,7 @@
 //! header 校验、字符串长度编码、整数/浮点常量标签，以及新增位运算 opcode 的
 //! 解析规则，避免把版本差异揉成一个“差不多能用”的弱抽象。
 
+use crate::decompile::DecompileDialect;
 use crate::parser::dialect::puc_lua::{
     ClassicDebugDriver, LUA53_LUAC_DATA, LUA53_LUAC_INT, LUA53_LUAC_NUM, PucLuaLayout,
     PucLuaProtoSections, build_raw_string, count_u8, decode_instruction_word,
@@ -18,10 +19,10 @@ use crate::parser::error::ParseError;
 use crate::parser::options::ParseOptions;
 use crate::parser::raw::{
     ChunkHeader, ChunkLayout, Dialect, DialectConstPoolExtra, DialectDebugExtra,
-    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, DialectVersion,
-    Origin, ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool, RawConstPoolCommon,
-    RawDebugInfo, RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto,
-    RawString, RawUpvalueInfo, RawUpvalueInfoCommon, Span,
+    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, Origin,
+    ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool, RawConstPoolCommon, RawDebugInfo,
+    RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto, RawString,
+    RawUpvalueInfo, RawUpvalueInfoCommon, Span,
 };
 use crate::parser::reader::BinaryReader;
 
@@ -175,7 +176,7 @@ impl Lua53Parser {
 
         Ok(ChunkHeader {
             dialect: Dialect::PucLua,
-            version: DialectVersion::Lua53,
+            version: DecompileDialect::Lua53,
             layout: ChunkLayout::PucLua(PucLuaChunkLayout {
                 format: LUA53_FORMAT,
                 endianness,

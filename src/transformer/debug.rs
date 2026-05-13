@@ -1,15 +1,17 @@
 //! 这个文件承载 transformer 层对外暴露的调试入口。
 //!
 //! low-IR 是跨 dialect 共享的稳定契约，因此 dump 视图也应尽量共享实现；
-//! dialect-specific 的复杂性应该留在 lowering 阶段，而不是再次渗回观察层。
+//! stage dump 入口在这里直接从主 pipeline state 读取 LoweredChunk，dialect-specific
+//! 的复杂性应该留在 lowering 阶段，而不是再次渗回观察层。
 
 use std::fmt::Write as _;
 
 use crate::debug::{
     DebugColorMode, DebugDetail, DebugFilters, FocusPlan, ProtoSummaryRow, build_proto_nodes,
-    colorize_debug_text, compute_focus_plan, format_breadcrumb, format_proto_summary_row,
+    colorize_debug_text, compute_focus_plan, define_stage_dump, format_breadcrumb,
+    format_proto_summary_row,
 };
-use crate::parser::DialectVersion;
+use crate::decompile::DecompileDialect;
 
 use super::{
     AccessBase, AccessKey, BinaryOpKind, BranchCond, BranchOperands, BranchPredicate, CallKind,
@@ -25,8 +27,19 @@ struct ProtoEntry<'a> {
     proto: &'a LoweredProto,
 }
 
+define_stage_dump! {
+    /// Transformer 阶段的调试导出。
+    pub fn dump_lir(state, options) => Transform,
+        dump_lir_chunk(
+            state.lowered.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
+
 /// 输出统一 low-IR 的人类可读调试视图。
-pub fn dump_lir(
+fn dump_lir_chunk(
     chunk: &LoweredChunk,
     detail: DebugDetail,
     filters: &DebugFilters,
@@ -214,15 +227,15 @@ fn format_optional_source(proto: &LoweredProto) -> String {
         .map_or_else(|| "-".to_owned(), |text| format!("{:?}", text.value))
 }
 
-fn dialect_label(version: DialectVersion) -> &'static str {
+fn dialect_label(version: DecompileDialect) -> &'static str {
     match version {
-        DialectVersion::Lua51 => "lua5.1",
-        DialectVersion::Lua52 => "lua5.2",
-        DialectVersion::Lua53 => "lua5.3",
-        DialectVersion::Lua54 => "lua5.4",
-        DialectVersion::Lua55 => "lua5.5",
-        DialectVersion::LuaJit => "luajit",
-        DialectVersion::Luau => "luau",
+        DecompileDialect::Lua51 => "lua5.1",
+        DecompileDialect::Lua52 => "lua5.2",
+        DecompileDialect::Lua53 => "lua5.3",
+        DecompileDialect::Lua54 => "lua5.4",
+        DecompileDialect::Lua55 => "lua5.5",
+        DecompileDialect::Luajit => "luajit",
+        DecompileDialect::Luau => "luau",
     }
 }
 

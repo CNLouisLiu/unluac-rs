@@ -7,14 +7,15 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use super::lower::{ChildAnalyses, LowerArtifacts, lower_proto};
-use crate::cfg::{analyze_dataflow, analyze_graph_facts, build_cfg_proto};
+use crate::cfg::{build_cfg_graph, compute_dataflow_facts, compute_graph_facts};
+use crate::decompile::DecompileDialect;
 use crate::hir::common::{
     HirBinaryOpKind, HirDecisionTarget, HirExpr, HirLValue, HirModule, HirStmt,
 };
-use crate::hir::dump_hir;
-use crate::parser::{ParseOptions, parse_lua51_chunk, parse_lua55_chunk, parse_luau_chunk};
+use crate::hir::debug::dump_hir_module;
+use crate::parser::{ParseOptions, parse_chunk_with_dialect};
 use crate::structure::analyze_structure_proto;
-use crate::transformer::lower_chunk;
+use crate::transformer::lower_raw_chunk;
 
 #[test]
 fn luau_generic_for_keeps_loop_state_assignment_before_simplify() {
@@ -41,7 +42,7 @@ fn luau_generic_for_keeps_loop_state_assignment_before_simplify() {
             )
         }),
         "structured HIR lost the generic-for loop state update before simplify:\n{}",
-        dump_hir(
+        dump_hir_module(
             &module,
             crate::debug::DebugDetail::Normal,
             &crate::debug::DebugFilters::unfiltered(),
@@ -66,7 +67,7 @@ fn luau_while_header_consts_stay_in_condition_expr() {
     let HirExpr::Binary(cond) = &while_stmt.cond else {
         panic!(
             "expected while condition to stay a binary comparison:\n{}",
-            dump_hir(
+            dump_hir_module(
                 &module,
                 crate::debug::DebugDetail::Normal,
                 &crate::debug::DebugFilters::unfiltered(),
@@ -78,7 +79,7 @@ fn luau_while_header_consts_stay_in_condition_expr() {
     assert!(
         matches!(&cond.rhs, HirExpr::Integer(3)),
         "while header constant should be folded into condition instead of leaking as temp:\n{}",
-        dump_hir(
+        dump_hir_module(
             &module,
             crate::debug::DebugDetail::Normal,
             &crate::debug::DebugFilters::unfiltered(),
@@ -92,7 +93,7 @@ fn luau_branch_carried_state_stays_resolved_across_nested_loops() {
     let module =
         lower_luau_fixture_to_hir("tests/lua_cases/common/tricky/04_nested_control_flow.lua");
     let proto = &module.protos[1];
-    let hir_dump = dump_hir(
+    let hir_dump = dump_hir_module(
         &module,
         crate::debug::DebugDetail::Normal,
         &crate::debug::DebugFilters::unfiltered(),
@@ -110,7 +111,7 @@ fn lua51_if_else_short_circuit_shared_body_keeps_generic_for_structured() {
     let module = lower_lua51_fixture_to_hir(
         "tests/lua_cases/regress_05_if_else_short_circuit_shared_body.lua",
     );
-    let hir_dump = dump_hir(
+    let hir_dump = dump_hir_module(
         &module,
         crate::debug::DebugDetail::Normal,
         &crate::debug::DebugFilters::unfiltered(),
@@ -146,11 +147,12 @@ fn lua55_fixed_multiresult_call_keeps_all_fixed_defs_before_simplify() {
         "lua5.5",
         "tests/lua_cases/lua5.5/05_global_const_gate.lua",
     );
-    let raw = parse_lua55_chunk(&bytes, ParseOptions::default()).expect("fixture should parse");
-    let lowered = lower_chunk(&raw).expect("fixture should lower into LIR");
-    let cfg_graph = build_cfg_proto(&lowered.main);
-    let graph_facts = analyze_graph_facts(&cfg_graph);
-    let dataflow = analyze_dataflow(
+    let raw = parse_chunk_with_dialect(DecompileDialect::Lua55, &bytes, ParseOptions::default())
+        .expect("fixture should parse");
+    let lowered = lower_raw_chunk(&raw).expect("fixture should lower into LIR");
+    let cfg_graph = build_cfg_graph(&lowered.main);
+    let graph_facts = compute_graph_facts(&cfg_graph);
+    let dataflow = compute_dataflow_facts(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,
@@ -201,7 +203,7 @@ fn lua55_fixed_multiresult_call_keeps_all_fixed_defs_before_simplify() {
             )
         }),
         "fixed multiresult call should stay a two-target assign before simplify:\n{}",
-        dump_hir(
+        dump_hir_module(
             &module,
             crate::debug::DebugDetail::Verbose,
             &crate::debug::DebugFilters::unfiltered(),
@@ -215,7 +217,7 @@ fn lua55_self_assign_branch_keeps_preserved_entry_value_before_simplify() {
     let module =
         lower_lua55_fixture_to_hir("tests/lua_cases/common/tricky/34_self_assign_branch_shell.lua");
     let proto = &module.protos[module.entry.index()];
-    let hir_dump = dump_hir(
+    let hir_dump = dump_hir_module(
         &module,
         crate::debug::DebugDetail::Verbose,
         &crate::debug::DebugFilters::unfiltered(),
@@ -299,11 +301,12 @@ fn lua55_self_assign_branch_keeps_preserved_entry_value_before_simplify() {
 
 fn lower_luau_fixture_to_hir(source_relative: &str) -> HirModule {
     let bytes = compile_luau_fixture(source_relative);
-    let raw = parse_luau_chunk(&bytes, ParseOptions::default()).expect("fixture should parse");
-    let lowered = lower_chunk(&raw).expect("fixture should lower into LIR");
-    let cfg_graph = build_cfg_proto(&lowered.main);
-    let graph_facts = analyze_graph_facts(&cfg_graph);
-    let dataflow = analyze_dataflow(
+    let raw = parse_chunk_with_dialect(DecompileDialect::Luau, &bytes, ParseOptions::default())
+        .expect("fixture should parse");
+    let lowered = lower_raw_chunk(&raw).expect("fixture should lower into LIR");
+    let cfg_graph = build_cfg_graph(&lowered.main);
+    let graph_facts = compute_graph_facts(&cfg_graph);
+    let dataflow = compute_dataflow_facts(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,
@@ -341,11 +344,12 @@ fn lower_luau_fixture_to_hir(source_relative: &str) -> HirModule {
 
 fn lower_lua51_fixture_to_hir(source_relative: &str) -> HirModule {
     let bytes = unluac_test_support::compile_lua_case("lua5.1", source_relative);
-    let raw = parse_lua51_chunk(&bytes, ParseOptions::default()).expect("fixture should parse");
-    let lowered = lower_chunk(&raw).expect("fixture should lower into LIR");
-    let cfg_graph = build_cfg_proto(&lowered.main);
-    let graph_facts = analyze_graph_facts(&cfg_graph);
-    let dataflow = analyze_dataflow(
+    let raw = parse_chunk_with_dialect(DecompileDialect::Lua51, &bytes, ParseOptions::default())
+        .expect("fixture should parse");
+    let lowered = lower_raw_chunk(&raw).expect("fixture should lower into LIR");
+    let cfg_graph = build_cfg_graph(&lowered.main);
+    let graph_facts = compute_graph_facts(&cfg_graph);
+    let dataflow = compute_dataflow_facts(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,
@@ -383,11 +387,12 @@ fn lower_lua51_fixture_to_hir(source_relative: &str) -> HirModule {
 
 fn lower_lua55_fixture_to_hir(source_relative: &str) -> HirModule {
     let bytes = unluac_test_support::compile_lua_case("lua5.5", source_relative);
-    let raw = parse_lua55_chunk(&bytes, ParseOptions::default()).expect("fixture should parse");
-    let lowered = lower_chunk(&raw).expect("fixture should lower into LIR");
-    let cfg_graph = build_cfg_proto(&lowered.main);
-    let graph_facts = analyze_graph_facts(&cfg_graph);
-    let dataflow = analyze_dataflow(
+    let raw = parse_chunk_with_dialect(DecompileDialect::Lua55, &bytes, ParseOptions::default())
+        .expect("fixture should parse");
+    let lowered = lower_raw_chunk(&raw).expect("fixture should lower into LIR");
+    let cfg_graph = build_cfg_graph(&lowered.main);
+    let graph_facts = compute_graph_facts(&cfg_graph);
+    let dataflow = compute_dataflow_facts(
         &lowered.main,
         &cfg_graph.cfg,
         &graph_facts,

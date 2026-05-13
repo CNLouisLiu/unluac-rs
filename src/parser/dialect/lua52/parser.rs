@@ -4,6 +4,7 @@
 //! header tail、upvalue 描述符、`LOADKX/EXTRAARG` 等布局差异，避免把版本细节
 //! 模糊成“差不多一样”的弱抽象。
 
+use crate::decompile::DecompileDialect;
 use crate::parser::dialect::puc_lua::{
     ClassicDebugDriver, LUA_SIGNATURE, LUA52_LUAC_TAIL, PucLuaLayout, PucLuaProtoSections,
     build_raw_string, count_u8, decode_instruction_word, define_puc_lua_instruction_codec,
@@ -16,10 +17,10 @@ use crate::parser::error::ParseError;
 use crate::parser::options::ParseOptions;
 use crate::parser::raw::{
     ChunkHeader, ChunkLayout, Dialect, DialectConstPoolExtra, DialectDebugExtra,
-    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, DialectVersion,
-    Endianness, Origin, ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool,
-    RawConstPoolCommon, RawDebugInfo, RawInstrOpcode, RawInstrOperands, RawLiteralConst,
-    RawLocalVar, RawProto, RawString, RawUpvalueInfo, RawUpvalueInfoCommon, Span,
+    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, Endianness,
+    Origin, ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool, RawConstPoolCommon,
+    RawDebugInfo, RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto,
+    RawString, RawUpvalueInfo, RawUpvalueInfoCommon, Span,
 };
 use crate::parser::reader::BinaryReader;
 
@@ -173,7 +174,7 @@ impl Lua52Parser {
 
         Ok(ChunkHeader {
             dialect: Dialect::PucLua,
-            version: DialectVersion::Lua52,
+            version: DecompileDialect::Lua52,
             layout: ChunkLayout::PucLua(PucLuaChunkLayout {
                 format,
                 endianness,

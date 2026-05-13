@@ -3,8 +3,8 @@
 //! 我们把测试和实现分开存放，避免主实现文件被大段 `#[cfg(test)]` 代码淹没。
 
 use crate::ast::{
-    AstBlock, AstDialectVersion, AstExpr, AstLogicalExpr, AstModule, AstNameRef, AstStmt,
-    AstTargetDialect, AstUnaryExpr, AstUnaryOpKind,
+    AstBlock, AstExpr, AstLogicalExpr, AstModule, AstNameRef, AstStmt, AstTargetDialect,
+    AstUnaryExpr, AstUnaryOpKind, DecompileDialect,
 };
 use crate::hir::ParamId;
 
@@ -53,7 +53,7 @@ fn rewrites_ultimate_mess_shape_towards_guarded_source_form() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));

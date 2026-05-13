@@ -9,11 +9,11 @@ mod names;
 mod stmt;
 mod syntax;
 
-use crate::ast::{AstBlock, AstFeature, AstModule, AstTargetDialect};
+use crate::ast::{AstBlock, AstFeature, AstModule, AstTargetDialect, collect_ast_features};
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::generate::GenerateMode;
 use crate::generate::doc::Doc;
 use crate::hir::HirProtoRef;
-use crate::naming::NameMap;
 use names::NameResolver;
 
 use super::common::{GenerateCommentMetadata, GenerateOptions, GeneratedChunk};
@@ -53,25 +53,70 @@ enum ExprSide {
 }
 
 /// Generate 对外入口。
-pub fn generate_chunk(
-    module: &AstModule,
-    names: &NameMap,
-    target: AstTargetDialect,
-    metadata: Option<&GenerateCommentMetadata>,
-    options: GenerateOptions,
-) -> Result<GeneratedChunk, GenerateError> {
-    let emitter = Emitter {
-        names: NameResolver::new(names),
-        target,
-        metadata,
-        options,
+pub(crate) fn generate_chunk(
+    state: &mut DecompileState,
+    context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let options = context.options.generate;
+    let hir = state.hir.as_ref().unwrap();
+    let module = state.readability.as_ref().unwrap();
+    let names = state.naming.as_ref().unwrap();
+    let metadata = if options.comment {
+        Some(GenerateCommentMetadata::from_hir(
+            hir,
+            context.options.parse.string_encoding.as_str(),
+        ))
+    } else {
+        None
     };
-    let doc = emitter.emit_module(module)?;
-    Ok(GeneratedChunk {
-        dialect: target.version,
-        source: render_doc(&doc, options),
-        warnings: Vec::new(),
-    })
+    let generated = {
+        let emitter = Emitter {
+            names: NameResolver::new(names),
+            target: context.requested_target,
+            metadata: metadata.as_ref(),
+            options,
+        };
+        let doc = emitter.emit_module(module)?;
+        GeneratedChunk {
+            dialect: context.requested_target.version,
+            source: render_doc(&doc, options),
+            warnings: permissive_output_warnings(module, context.requested_target, options.mode),
+        }
+    };
+    state.generated = Some(generated);
+    Ok(())
+}
+
+fn permissive_output_warnings(
+    module: &AstModule,
+    target: AstTargetDialect,
+    mode: GenerateMode,
+) -> Vec<String> {
+    if mode != GenerateMode::Permissive {
+        return Vec::new();
+    }
+
+    let unsupported = collect_ast_features(module)
+        .into_iter()
+        .filter(|feature| !target.supports_feature(*feature))
+        .collect::<Vec<_>>();
+    if unsupported.is_empty() {
+        return Vec::new();
+    }
+
+    vec![format!(
+        "requested target dialect `{}` does not support feature(s) {}; emitting permissive output.",
+        target.version,
+        format_ast_features(&unsupported)
+    )]
+}
+
+fn format_ast_features(features: &[AstFeature]) -> String {
+    features
+        .iter()
+        .map(|feature| <&'static str>::from(*feature))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 struct Emitter<'a> {

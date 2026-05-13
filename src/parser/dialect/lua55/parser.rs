@@ -5,6 +5,7 @@
 //! 使用 varint，且 `NEWTABLE/SETLIST` 改成了 `ivABC` 变体。这里按真实格式
 //! 显式实现，避免把这些变化继续塞回 5.4 的读取假设里。
 
+use crate::decompile::DecompileDialect;
 use crate::parser::dialect::puc_lua::{
     AbsDebugDriver, AbsLineInfoConfig, LUA55_LUAC_DATA, LUA55_LUAC_INST, LUA55_LUAC_INT,
     LUA55_LUAC_NUM, PucLuaLayout, PucLuaProtoSections, build_raw_string, count_u8,
@@ -19,10 +20,10 @@ use crate::parser::error::ParseError;
 use crate::parser::options::ParseOptions;
 use crate::parser::raw::{
     ChunkHeader, ChunkLayout, Dialect, DialectConstPoolExtra, DialectDebugExtra,
-    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, DialectVersion,
-    Origin, ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool, RawConstPoolCommon,
-    RawDebugInfo, RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto,
-    RawString, RawUpvalueInfo, RawUpvalueInfoCommon, Span,
+    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, Origin,
+    ProtoSignature, PucLuaChunkLayout, RawChunk, RawConstPool, RawConstPoolCommon, RawDebugInfo,
+    RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto, RawString,
+    RawUpvalueInfo, RawUpvalueInfoCommon, Span,
 };
 use crate::parser::reader::BinaryReader;
 
@@ -234,7 +235,7 @@ impl Lua55ParserState {
 
         Ok(ChunkHeader {
             dialect: Dialect::PucLua,
-            version: DialectVersion::Lua55,
+            version: DecompileDialect::Lua55,
             layout: ChunkLayout::PucLua(PucLuaChunkLayout {
                 format: LUA55_FORMAT,
                 endianness,

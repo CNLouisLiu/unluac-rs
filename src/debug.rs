@@ -17,6 +17,46 @@ pub use focus::{
     compute_focus_plan, format_breadcrumb, format_proto_summary_row,
 };
 
+/// 生成一对 `#[cfg(feature)]` / `#[cfg(not)]` 的阶段 dump 入口。
+///
+/// 各业务层在自己的 `debug.rs` 里声明 stage dump：启用 `decompile-debug` 时从
+/// `DecompileState` 读取本层产物并渲染文本；禁用时只保留同签名空实现，避免 wasm
+/// 入口把调试渲染逻辑作为可用能力暴露出去。
+macro_rules! define_stage_dump {
+    (
+        $(
+            $(#[doc = $doc:literal])*
+            pub fn $name:ident ( $state:ident, $options:ident ) => $stage:ident, $content:expr;
+        )+
+    ) => {
+        $(
+            $(#[doc = $doc])*
+            #[cfg(feature = "decompile-debug")]
+            pub fn $name(
+                $state: &$crate::decompile::DecompileState,
+                $options: &$crate::decompile::DebugOptions,
+            ) -> Result<$crate::decompile::StageDebugOutput, $crate::decompile::DecompileError> {
+                Ok($crate::decompile::StageDebugOutput {
+                    stage: $crate::decompile::DecompileStage::$stage,
+                    detail: $options.detail,
+                    content: $content,
+                })
+            }
+
+            $(#[doc = $doc])*
+            #[cfg(not(feature = "decompile-debug"))]
+            pub fn $name(
+                _state: &$crate::decompile::DecompileState,
+                _options: &$crate::decompile::DebugOptions,
+            ) -> Result<$crate::decompile::StageDebugOutput, $crate::decompile::DecompileError> {
+                Err($crate::decompile::DecompileError::DebugUnavailable)
+            }
+        )+
+    };
+}
+
+pub(crate) use define_stage_dump;
+
 use std::{fmt, io::IsTerminal};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 

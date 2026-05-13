@@ -3,19 +3,26 @@
 //! 入口层集中补默认值，比把默认逻辑散在各阶段里更稳；后续阶段变多后，
 //! 仍然只需要维护这一处归一化逻辑。
 
-use crate::ast::AstDialectVersion;
+use crate::debug::{DebugColorMode, DebugDetail, DebugFilters};
 use crate::generate::GenerateOptions;
 use crate::naming::{NamingMode, NamingOptions};
-use crate::parser::{
-    ParseMode, ParseOptions, RawChunk, StringDecodeMode, StringEncoding, parse_lua51_chunk,
-    parse_lua52_chunk, parse_lua53_chunk, parse_lua54_chunk, parse_lua55_chunk, parse_luajit_chunk,
-    parse_luau_chunk,
-};
+use crate::parser::{ParseMode, ParseOptions, StringDecodeMode, StringEncoding};
 use crate::readability::ReadabilityOptions;
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
-use super::debug::DebugOptions;
 use super::state::DecompileStage;
+
+/// 供主 pipeline 和 CLI 共享的调试选项。
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct DebugOptions {
+    pub enable: bool,
+    pub output_stages: Vec<DecompileStage>,
+    pub timing: bool,
+    pub color: DebugColorMode,
+    pub detail: DebugDetail,
+    pub filters: DebugFilters,
+    pub dump_passes: Vec<String>,
+}
 
 /// 调用方请求解析的目标 dialect。
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Display, EnumString, IntoStaticStr)]
@@ -35,39 +42,6 @@ pub enum DecompileDialect {
     Luajit,
     #[strum(serialize = "luau")]
     Luau,
-}
-
-impl DecompileDialect {
-    /// 按 dialect 分派到对应的字节码 parser。
-    pub fn parse_chunk(
-        self,
-        bytes: &[u8],
-        options: ParseOptions,
-    ) -> Result<RawChunk, crate::parser::ParseError> {
-        match self {
-            Self::Lua51 => parse_lua51_chunk(bytes, options),
-            Self::Lua52 => parse_lua52_chunk(bytes, options),
-            Self::Lua53 => parse_lua53_chunk(bytes, options),
-            Self::Lua54 => parse_lua54_chunk(bytes, options),
-            Self::Lua55 => parse_lua55_chunk(bytes, options),
-            Self::Luajit => parse_luajit_chunk(bytes, options),
-            Self::Luau => parse_luau_chunk(bytes, options),
-        }
-    }
-}
-
-impl From<DecompileDialect> for AstDialectVersion {
-    fn from(dialect: DecompileDialect) -> Self {
-        match dialect {
-            DecompileDialect::Lua51 => AstDialectVersion::Lua51,
-            DecompileDialect::Lua52 => AstDialectVersion::Lua52,
-            DecompileDialect::Lua53 => AstDialectVersion::Lua53,
-            DecompileDialect::Lua54 => AstDialectVersion::Lua54,
-            DecompileDialect::Lua55 => AstDialectVersion::Lua55,
-            DecompileDialect::Luajit => AstDialectVersion::LuaJit,
-            DecompileDialect::Luau => AstDialectVersion::Luau,
-        }
-    }
 }
 
 /// 一次主反编译调用的顶层选项。

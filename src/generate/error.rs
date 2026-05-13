@@ -5,7 +5,7 @@
 
 use thiserror::Error;
 
-use crate::ast::{AstBindingRef, AstDialectVersion, AstNameRef};
+use crate::ast::{AstBindingRef, AstNameRef, DecompileDialect};
 use crate::hir::HirProtoRef;
 
 /// Generate 可能失败的原因。
@@ -35,7 +35,7 @@ pub enum GenerateError {
         "target dialect `{dialect}` does not support feature `{feature}` required during generate"
     )]
     UnsupportedFeature {
-        dialect: AstDialectVersion,
+        dialect: DecompileDialect,
         feature: &'static str,
     },
 }

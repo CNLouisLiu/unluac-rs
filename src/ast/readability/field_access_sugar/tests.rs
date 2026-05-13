@@ -31,7 +31,7 @@ fn rewrites_string_index_with_identifier_key_into_field_access() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));

@@ -9,7 +9,7 @@ use super::ReadabilityContext;
 use super::walk::{self, AstRewritePass, BlockKind};
 
 pub(super) fn apply(module: &mut AstModule, context: ReadabilityContext) -> bool {
-    if context.target.version != crate::ast::AstDialectVersion::LuaJit {
+    if context.target.version != crate::ast::DecompileDialect::Luajit {
         return false;
     }
     walk::rewrite_module(module, &mut LuajitGotoSafetyPass)

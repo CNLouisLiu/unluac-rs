@@ -38,7 +38,7 @@ fn removes_trailing_empty_return_from_module_and_function_bodies() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -68,7 +68,7 @@ fn keeps_empty_return_inside_nested_control_flow_blocks() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -118,7 +118,7 @@ fn drops_unused_synthetic_locals_but_keeps_bindings_assigned_later() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -149,7 +149,7 @@ fn flattens_single_return_do_block_after_inner_locals_disappear() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -191,7 +191,7 @@ fn keeps_unused_recovered_lookup_local_with_field_access_initializer() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -244,7 +244,7 @@ fn keeps_recovered_lookup_local_when_nested_function_captures_it() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -295,7 +295,7 @@ fn keeps_empty_synthetic_local_when_nested_function_captures_it() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));

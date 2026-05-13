@@ -1,8 +1,8 @@
 //! 这个模块承载整个字节码 parser 层。
 //!
 //! 它的职责是提供统一入口、共享基础设施和跨 dialect 共享的数据模型；
-//! 具体某个 dialect 的 parser 本体与专属枚举都放到子目录里，避免公共层
-//! 被单个版本的细节持续污染。
+//! 主 pipeline 的 Parse stage 入口也在这里落点，由 parser 自己按 `DecompileDialect` 分派。
+//! 具体某个 dialect 的 parser 本体与专属枚举都放到子目录里，避免公共层被单个版本的细节持续污染。
 
 mod debug;
 mod dialect;
@@ -31,68 +31,34 @@ use dialect::lua55::Lua55Parser;
 use dialect::luajit::LuaJitParser;
 use dialect::luau::LuauParser;
 
-const LUA_SIGNATURE: &[u8; 4] = b"\x1bLua";
-const LUA51_VERSION: u8 = 0x51;
-const LUA52_VERSION: u8 = 0x52;
-const LUA53_VERSION: u8 = 0x53;
-const LUA54_VERSION: u8 = 0x54;
-const LUA55_VERSION: u8 = 0x55;
+use crate::decompile::{DecompileContext, DecompileDialect, DecompileError, DecompileState};
 
-/// 根据 chunk header 自动选择对应 dialect parser。
-pub fn parse_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    if bytes.len() < 5 {
-        return Err(ParseError::UnexpectedEof {
-            offset: 0,
-            requested: 5,
-            remaining: bytes.len(),
-        });
+/// Parse 阶段入口：按请求 dialect 解析输入字节并写回 raw chunk 槽位。
+pub(crate) fn parse_input(
+    state: &mut DecompileState,
+    context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    state.raw_chunk = Some(parse_chunk_with_dialect(
+        context.options.dialect,
+        context.bytes,
+        context.options.parse,
+    )?);
+    Ok(())
+}
+
+/// 按调用方指定的 dialect 解析 chunk，不做版本自动探测。
+pub fn parse_chunk_with_dialect(
+    dialect: DecompileDialect,
+    bytes: &[u8],
+    options: ParseOptions,
+) -> Result<RawChunk, ParseError> {
+    match dialect {
+        DecompileDialect::Lua51 => Lua51Parser::new(options).parse(bytes),
+        DecompileDialect::Lua52 => Lua52Parser::new(options).parse(bytes),
+        DecompileDialect::Lua53 => Lua53Parser::new(options).parse(bytes),
+        DecompileDialect::Lua54 => Lua54Parser::new(options).parse(bytes),
+        DecompileDialect::Lua55 => Lua55Parser::new(options).parse(bytes),
+        DecompileDialect::Luajit => LuaJitParser::new(options).parse(bytes),
+        DecompileDialect::Luau => LuauParser::new(options).parse(bytes),
     }
-
-    if &bytes[..4] != LUA_SIGNATURE {
-        return Err(ParseError::InvalidSignature { offset: 0 });
-    }
-
-    match bytes[4] {
-        LUA51_VERSION => Lua51Parser::new(options).parse(bytes),
-        LUA52_VERSION => Lua52Parser::new(options).parse(bytes),
-        LUA53_VERSION => Lua53Parser::new(options).parse(bytes),
-        LUA54_VERSION => Lua54Parser::new(options).parse(bytes),
-        LUA55_VERSION => Lua55Parser::new(options).parse(bytes),
-        found => Err(ParseError::UnsupportedVersion { found }),
-    }
-}
-
-/// 直接按 Lua 5.1 规则解析 chunk，不做版本自动探测。
-pub fn parse_lua51_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    Lua51Parser::new(options).parse(bytes)
-}
-
-/// 直接按 Lua 5.2 规则解析 chunk，不做版本自动探测。
-pub fn parse_lua52_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    Lua52Parser::new(options).parse(bytes)
-}
-
-/// 直接按 Lua 5.3 规则解析 chunk，不做版本自动探测。
-pub fn parse_lua53_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    Lua53Parser::new(options).parse(bytes)
-}
-
-/// 直接按 Lua 5.4 规则解析 chunk，不做版本自动探测。
-pub fn parse_lua54_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    Lua54Parser::new(options).parse(bytes)
-}
-
-/// 直接按 Lua 5.5 规则解析 chunk，不做版本自动探测。
-pub fn parse_lua55_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    Lua55Parser::new(options).parse(bytes)
-}
-
-/// LuaJIT 入口保留显式 dialect 分派，不走 PUC-Lua 自动探测。
-pub fn parse_luajit_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    LuaJitParser::new(options).parse(bytes)
-}
-
-/// Luau 入口先只保留显式 dialect 分派位，避免调用方继续误走 PUC-Lua 自动探测。
-pub fn parse_luau_chunk(bytes: &[u8], options: ParseOptions) -> Result<RawChunk, ParseError> {
-    LuauParser::new(options).parse(bytes)
 }

@@ -33,7 +33,7 @@ fn materializes_remaining_temps_into_synthetic_locals() {
     let changed = super::apply(
         &mut module,
         super::ReadabilityContext {
-            target: crate::ast::AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: crate::ast::AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: crate::readability::ReadabilityOptions::default(),
         },
     );

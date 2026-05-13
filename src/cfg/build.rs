@@ -8,6 +8,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::transformer::{InstrRef, LowInstr, LoweredProto};
 
 use super::common::{
@@ -15,10 +16,20 @@ use super::common::{
 };
 
 /// 对 proto 树递归构建 CFG。
-pub fn build_cfg_proto(proto: &LoweredProto) -> CfgGraph {
+pub(crate) fn build_cfg_proto(
+    state: &mut DecompileState,
+    _context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let lowered = state.lowered.as_ref().unwrap();
+    state.cfg = Some(build_cfg_graph(&lowered.main));
+    Ok(())
+}
+
+/// 对 proto 树递归构建 CFG。
+pub fn build_cfg_graph(proto: &LoweredProto) -> CfgGraph {
     CfgGraph {
         cfg: build_cfg(&proto.instrs),
-        children: proto.children.iter().map(build_cfg_proto).collect(),
+        children: proto.children.iter().map(build_cfg_graph).collect(),
     }
 }
 

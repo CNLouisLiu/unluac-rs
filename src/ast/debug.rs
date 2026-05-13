@@ -16,7 +16,8 @@
 //!   分支，统一在渲染 body 前查询 thread-local：不可见的函数退化为一行
 //!   `function(...) --[[ body elided proto#K ]] end` 占位。
 //!
-//! 选择不在 generate 层做 elision 的原因：generate 层产出的是最终 Lua 源码，
+//! stage dump 入口直接从主 pipeline state 读取 AST 或 Readability 产物，阶段表可以
+//! 直接引用 AST 层导出的函数。选择不在 generate 层做 elision 的原因：generate 层产出的是最终 Lua 源码，
 //! 对它做局部截断会输出非法语法。对于"只看某个函数最终长什么样"的需求，用
 //! `--stop-after readability --proto N` 或 `--stop-after ast --proto N` 得到的
 //! 函数形状已足够；generate 层改为整文件直出，文档里也这么声明。
@@ -31,7 +32,8 @@ use crate::ast::traverse::{
 };
 use crate::debug::{
     DebugColorMode, DebugDetail, DebugFilters, FocusPlan, FocusRequest, ProtoNode,
-    build_proto_nodes, colorize_debug_text, compute_focus_plan, format_breadcrumb,
+    build_proto_nodes, colorize_debug_text, compute_focus_plan, define_stage_dump,
+    format_breadcrumb,
 };
 use crate::hir::LocalId;
 
@@ -78,6 +80,26 @@ fn install_ast_focus(state: AstFocusState) -> AstFocusGuard {
     AstFocusGuard
 }
 
+define_stage_dump! {
+    /// AST 阶段的调试导出。
+    pub fn dump_ast(state, options) => Ast,
+        dump_ast_module(
+            state.ast.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+
+    /// Readability 阶段的调试导出。
+    pub fn dump_readability(state, options) => Readability,
+        dump_readability_module(
+            state.readability.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
+
 /// 查询某个 proto 是否应渲染完整 body。默认（thread-local 尚未装载）视作可见，
 /// 兼容 `dump_ast_snapshot` 这种不走聚焦流程的 caller。
 fn ast_focus_is_visible(proto_id: usize) -> bool {
@@ -92,7 +114,7 @@ fn ast_focus_is_visible(proto_id: usize) -> bool {
 }
 
 /// 输出 AST 的调试文本。
-pub fn dump_ast(
+fn dump_ast_module(
     module: &AstModule,
     detail: DebugDetail,
     filters: &DebugFilters,
@@ -102,7 +124,7 @@ pub fn dump_ast(
 }
 
 /// 输出 Readability 阶段的调试文本。
-pub fn dump_readability(
+fn dump_readability_module(
     module: &AstModule,
     detail: DebugDetail,
     filters: &DebugFilters,

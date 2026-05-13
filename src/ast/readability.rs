@@ -27,6 +27,7 @@ mod visit;
 mod walk;
 
 use super::common::{AstModule, AstTargetDialect};
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::readability::ReadabilityOptions;
 use crate::scheduler::{InvalidationTag, PassDescriptor, PassPhase, run_invalidation_loop};
 use crate::timing::TimingCollector;
@@ -231,6 +232,22 @@ const MAX_ROUNDS: usize = 64;
 
 /// 对外的 readability 入口。
 pub(crate) fn make_readable(
+    state: &mut DecompileState,
+    context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let ast = state.ast.as_ref().unwrap();
+    state.readability = Some(make_readable_module(
+        ast,
+        context.requested_target,
+        context.options.readability,
+        context.timings,
+        &context.options.debug.dump_passes,
+    ));
+    Ok(())
+}
+
+/// 对已经合法的 AST 执行 readability pass 收敛。
+pub(crate) fn make_readable_module(
     module: &AstModule,
     target: AstTargetDialect,
     options: ReadabilityOptions,

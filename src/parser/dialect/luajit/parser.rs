@@ -6,11 +6,12 @@
 //! - 把 LuaJIT 自己的 KGC/KNUM/TDUP 常量空间落到 dialect extra，同时把
 //!   后续 low/HIR 能直接消费的字面量同步进公共 `RawLiteralConst` 表。
 
+use crate::decompile::DecompileDialect;
 use crate::parser::error::ParseError;
 use crate::parser::options::ParseOptions;
 use crate::parser::raw::{
     ChunkHeader, ChunkLayout, DecodedText, Dialect, DialectConstPoolExtra, DialectDebugExtra,
-    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, DialectVersion,
+    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra,
     LuaJitChunkLayout, Origin, ProtoFrameInfo, ProtoLineRange, ProtoSignature, RawChunk,
     RawConstPool, RawConstPoolCommon, RawDebugInfo, RawDebugInfoCommon, RawInstr, RawInstrOpcode,
     RawInstrOperands, RawLiteralConst, RawProto, RawProtoCommon, RawString, RawUpvalueDescriptor,
@@ -173,7 +174,7 @@ impl LuaJitParser {
 
         Ok(ChunkHeader {
             dialect: Dialect::LuaJit,
-            version: DialectVersion::LuaJit,
+            version: DecompileDialect::Luajit,
             layout: ChunkLayout::LuaJit(LuaJitChunkLayout {
                 dump_version: LUAJIT_DUMP_VERSION,
                 flags,

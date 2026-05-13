@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::ast::AstDialectVersion;
+use crate::ast::DecompileDialect;
 use crate::hir::common::{
     HirCallExpr, HirDecisionTarget, HirExpr, HirLValue, HirStmt, HirTableField, HirTableKey,
 };
@@ -34,7 +34,7 @@ pub(super) fn matches_binding_ref(expr: &HirExpr, binding: TableBinding) -> bool
     binding_from_expr(expr) == Some(binding)
 }
 
-pub(super) fn table_key_from_expr(expr: &HirExpr, dialect: AstDialectVersion) -> HirTableKey {
+pub(super) fn table_key_from_expr(expr: &HirExpr, dialect: DecompileDialect) -> HirTableKey {
     if let HirExpr::String(name) = expr
         && is_identifier_name(name, dialect)
     {
@@ -341,7 +341,7 @@ fn stmt_mentions_binding(stmt: &HirStmt, binding: TableBinding) -> bool {
 /// 除了语法上的标识符格式检查外，还需排除 Lua 保留关键字——`if`、`for`
 /// 等虽然满足 `[a-zA-Z_][a-zA-Z0-9_]*` 的格式，但不能在无括号的位置
 /// 作为标识符使用，必须改用 `["if"]` 等 bracket 形式。
-fn is_identifier_name(name: &str, dialect: AstDialectVersion) -> bool {
+fn is_identifier_name(name: &str, dialect: DecompileDialect) -> bool {
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
         return false;

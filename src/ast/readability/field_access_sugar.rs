@@ -4,9 +4,9 @@
 //! 这里尽早把它规整成字段访问，是为了让后续的 alias inline / method sugar
 //! 都能直接面对更稳定的 AST 形状，而不是各自重复理解字符串索引。
 
-use super::super::common::{
-    AstDialectVersion, AstExpr, AstFieldAccess, AstIndexAccess, AstLValue, AstModule,
-};
+use crate::ast::DecompileDialect;
+
+use super::super::common::{AstExpr, AstFieldAccess, AstIndexAccess, AstLValue, AstModule};
 use super::ReadabilityContext;
 use super::walk::{self, AstRewritePass};
 
@@ -20,7 +20,7 @@ pub(super) fn apply(module: &mut AstModule, context: ReadabilityContext) -> bool
 }
 
 struct FieldAccessSugarPass {
-    dialect: AstDialectVersion,
+    dialect: DecompileDialect,
 }
 
 impl AstRewritePass for FieldAccessSugarPass {
@@ -49,7 +49,7 @@ impl AstRewritePass for FieldAccessSugarPass {
 
 fn field_access_from_index(
     access: &AstIndexAccess,
-    dialect: AstDialectVersion,
+    dialect: DecompileDialect,
 ) -> Option<AstFieldAccess> {
     let AstExpr::String(field) = &access.index else {
         return None;
@@ -63,7 +63,7 @@ fn field_access_from_index(
     })
 }
 
-fn is_lua_identifier(name: &str, dialect: AstDialectVersion) -> bool {
+fn is_lua_identifier(name: &str, dialect: DecompileDialect) -> bool {
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
         return false;

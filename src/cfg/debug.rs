@@ -1,15 +1,16 @@
 //! 这个文件承载共享分析层的调试输出。
 //!
-//! CFG/GraphFacts/Dataflow 都是跨 dialect 共享的，所以观察视图也放在这一层，
-//! 让 CLI、主 pipeline 和单测都复用同一套稳定文本格式。
+//! CFG/GraphFacts/Dataflow 都是跨 dialect 共享的，所以观察视图也放在这一层。
+//! 三个 stage dump 入口直接从主 pipeline state 读取对应事实，让阶段表可以直接引用
+//! `cfg` 层导出的函数。
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use crate::debug::{
     DebugColorMode, DebugDetail, DebugFilters, FocusPlan, ProtoSummaryRow, build_proto_nodes,
-    colorize_debug_text, compute_focus_plan, format_breadcrumb, format_display_set,
-    format_proto_summary_row,
+    colorize_debug_text, compute_focus_plan, define_stage_dump, format_breadcrumb,
+    format_display_set, format_proto_summary_row,
 };
 use crate::transformer::{LowInstr, LoweredChunk, LoweredProto};
 
@@ -36,8 +37,39 @@ struct DataflowProtoEntry<'a> {
     facts: &'a DataflowFacts,
 }
 
+define_stage_dump! {
+    /// CFG 阶段的调试导出。
+    pub fn dump_cfg(state, options) => Cfg,
+        dump_cfg_graph(
+            state.cfg.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+
+    /// GraphFacts 阶段的调试导出。
+    pub fn dump_graph_facts(state, options) => GraphFacts,
+        dump_graph_facts_tree(
+            state.graph_facts.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+
+    /// Dataflow 阶段的调试导出。
+    pub fn dump_dataflow(state, options) => Dataflow,
+        dump_dataflow_facts(
+            state.lowered.as_ref().unwrap(),
+            state.cfg.as_ref().unwrap(),
+            state.dataflow.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
+
 /// 输出 CFG 的人类可读摘要。
-pub fn dump_cfg(
+fn dump_cfg_graph(
     graph: &CfgGraph,
     detail: DebugDetail,
     filters: &DebugFilters,
@@ -126,7 +158,7 @@ pub fn dump_cfg(
 }
 
 /// 输出 GraphFacts 的人类可读摘要。
-pub fn dump_graph_facts(
+fn dump_graph_facts_tree(
     graph_facts: &GraphFacts,
     detail: DebugDetail,
     filters: &DebugFilters,
@@ -238,7 +270,7 @@ pub fn dump_graph_facts(
 }
 
 /// 输出数据流层的人类可读摘要。
-pub fn dump_dataflow(
+fn dump_dataflow_facts(
     chunk: &LoweredChunk,
     cfg: &CfgGraph,
     dataflow: &DataflowFacts,

@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, VecDeque};
 
-use crate::ast::AstDialectVersion;
+use crate::ast::DecompileDialect;
 use crate::hir::common::{
     HirBlock, HirCallExpr, HirCapture, HirDecisionTarget, HirExpr, HirLValue, HirStmt,
     HirTableConstructor, HirTableField, HirTableKey, HirTableSetList,
@@ -58,7 +58,7 @@ pub(super) struct RegionRebuildContext<'a> {
     remaining_uses: &'a BindingUseSummary,
     allow_closure_records_prefix: bool,
     materialized_binding_counts: &'a [u32],
-    dialect: AstDialectVersion,
+    dialect: DecompileDialect,
     scratch: &'a mut RebuildScratch,
 }
 
@@ -69,7 +69,7 @@ impl<'a> RegionRebuildContext<'a> {
         remaining_uses: &'a BindingUseSummary,
         allow_closure_records_prefix: bool,
         materialized_binding_counts: &'a [u32],
-        dialect: AstDialectVersion,
+        dialect: DecompileDialect,
         scratch: &'a mut RebuildScratch,
     ) -> Self {
         Self {
@@ -666,7 +666,7 @@ fn prepare_record_step(
 fn record_field_parts(
     block: &HirBlock,
     stmt_index: usize,
-    dialect: AstDialectVersion,
+    dialect: DecompileDialect,
 ) -> Option<(HirTableKey, &HirExpr)> {
     let HirStmt::Assign(assign) = block.stmts.get(stmt_index)? else {
         return None;

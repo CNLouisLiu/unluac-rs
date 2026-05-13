@@ -13,7 +13,7 @@
 //! - 子 proto 会递归走完全相同的结构分析顺序，保证父子层结构事实口径一致
 
 use crate::cfg::{Cfg, CfgGraph, DataflowFacts, GraphFacts};
-use crate::decompile::{DecompileOptions, DecompileState};
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::transformer::LoweredProto;
 
 use super::common::StructureFacts;
@@ -21,15 +21,23 @@ use super::{
     branch_values, branches, goto, helpers, loops, phi_facts, regions, scope, short_circuit,
 };
 
-/// 从主 pipeline 状态中读取根 proto 所需事实，并递归提取结构候选。
-pub fn analyze_structure(state: &DecompileState, _options: &DecompileOptions) -> StructureFacts {
-    analyze_structure_proto(
-        &state.lowered().main,
-        &state.cfg().cfg,
-        state.graph_facts(),
-        state.dataflow(),
-        &state.cfg().children,
-    )
+/// StructureFacts 阶段入口：从前序槽位读取图与数据流事实，写回结构候选。
+pub(crate) fn analyze_structure(
+    state: &mut DecompileState,
+    _context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let lowered = state.lowered.as_ref().unwrap();
+    let cfg = state.cfg.as_ref().unwrap();
+    let graph_facts = state.graph_facts.as_ref().unwrap();
+    let dataflow = state.dataflow.as_ref().unwrap();
+    state.structure_facts = Some(analyze_structure_proto(
+        &lowered.main,
+        &cfg.cfg,
+        graph_facts,
+        dataflow,
+        &cfg.children,
+    ));
+    Ok(())
 }
 
 /// 对单个 proto 递归提取结构候选，子 proto 走完全相同的分析顺序。

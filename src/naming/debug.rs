@@ -1,13 +1,29 @@
 //! Naming 层调试输出。
+//!
+//! stage dump 入口直接从主 pipeline state 读取 NameMap；渲染主体只关心命名结果本身，
+//! 不反向参与任何命名决策。
 
 use std::fmt::Write as _;
 
-use crate::debug::{DebugColorMode, DebugDetail, DebugFilters, ProtoDepth, colorize_debug_text};
+use crate::debug::{
+    DebugColorMode, DebugDetail, DebugFilters, ProtoDepth, colorize_debug_text, define_stage_dump,
+};
 
 use super::{FunctionNameMap, NameMap};
 
+define_stage_dump! {
+    /// Naming 阶段的调试导出。
+    pub fn dump_naming(state, options) => Naming,
+        dump_name_map(
+            state.naming.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
+
 /// 输出 Naming 的调试文本。
-pub fn dump_naming(
+fn dump_name_map(
     names: &NameMap,
     detail: DebugDetail,
     filters: &DebugFilters,

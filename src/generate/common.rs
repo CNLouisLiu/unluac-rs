@@ -3,14 +3,14 @@
 //! 这些类型需要同时被 decompile 入口、renderer 和调试输出复用，所以单独抽到这里，
 //! 避免把“生成选项”“注释元信息”和“最终产物”散落在 emit/render 两边。
 
-use crate::ast::AstDialectVersion;
-use crate::hir::{HirProtoRef, ProtoLineRange, ProtoSignature};
+use crate::ast::DecompileDialect;
+use crate::hir::{HirModule, HirProtoRef, ProtoLineRange, ProtoSignature};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
 /// 最终生成的源码结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GeneratedChunk {
-    pub dialect: AstDialectVersion,
+    pub dialect: DecompileDialect,
     pub source: String,
     pub warnings: Vec<String>,
 }
@@ -18,7 +18,7 @@ pub struct GeneratedChunk {
 impl Default for GeneratedChunk {
     fn default() -> Self {
         Self {
-            dialect: AstDialectVersion::Lua51,
+            dialect: DecompileDialect::Lua51,
             source: String::new(),
             warnings: Vec::new(),
         }
@@ -62,6 +62,31 @@ pub struct GenerateCommentMetadata {
 }
 
 impl GenerateCommentMetadata {
+    pub(crate) fn from_hir(hir: &HirModule, encoding: &str) -> Self {
+        let entry_source = hir
+            .protos
+            .get(hir.entry.index())
+            .and_then(|proto| proto.source.clone());
+        Self {
+            chunk: GenerateChunkCommentMetadata {
+                file_name: entry_source,
+                encoding: encoding.to_owned(),
+            },
+            functions: hir
+                .protos
+                .iter()
+                .map(|proto| GenerateFunctionCommentMetadata {
+                    function: proto.id,
+                    source: proto.source.clone(),
+                    line_range: proto.line_range,
+                    signature: proto.signature,
+                    local_count: proto.locals.len(),
+                    upvalue_count: proto.upvalues.len(),
+                })
+                .collect(),
+        }
+    }
+
     pub fn function(&self, function: HirProtoRef) -> Option<&GenerateFunctionCommentMetadata> {
         self.functions.get(function.index())
     }

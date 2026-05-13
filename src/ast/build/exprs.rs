@@ -8,11 +8,12 @@ use crate::hir::{
 };
 
 use super::{AstLowerError, AstLowerer};
+use crate::ast::DecompileDialect;
 use crate::ast::common::{
-    AstAssign, AstBinaryExpr, AstBinaryOpKind, AstCallExpr, AstCallKind, AstDialectVersion,
-    AstExpr, AstFieldAccess, AstFunctionExpr, AstGlobalName, AstIndexAccess, AstLValue,
-    AstLocalDecl, AstLogicalExpr, AstMethodCallExpr, AstNameRef, AstTableConstructor,
-    AstTableField, AstTableKey, AstUnaryExpr, AstUnaryOpKind,
+    AstAssign, AstBinaryExpr, AstBinaryOpKind, AstCallExpr, AstCallKind, AstExpr, AstFieldAccess,
+    AstFunctionExpr, AstGlobalName, AstIndexAccess, AstLValue, AstLocalDecl, AstLogicalExpr,
+    AstMethodCallExpr, AstNameRef, AstTableConstructor, AstTableField, AstTableKey, AstUnaryExpr,
+    AstUnaryOpKind,
 };
 
 impl<'a> AstLowerer<'a> {
@@ -356,14 +357,14 @@ fn lower_binary_op(op: HirBinaryOpKind) -> AstBinaryOpKind {
     }
 }
 
-fn field_name_from_key(key: &HirExpr, dialect: AstDialectVersion) -> Option<String> {
+fn field_name_from_key(key: &HirExpr, dialect: DecompileDialect) -> Option<String> {
     match key {
         HirExpr::String(name) if is_lua_identifier(name, dialect) => Some(name.clone()),
         _ => None,
     }
 }
 
-fn is_lua_identifier(name: &str, dialect: AstDialectVersion) -> bool {
+fn is_lua_identifier(name: &str, dialect: DecompileDialect) -> bool {
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
         return false;

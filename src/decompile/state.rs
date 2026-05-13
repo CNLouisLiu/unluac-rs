@@ -3,14 +3,17 @@
 //! 这里选择“固定阶段枚举 + 强类型槽位”，是因为当前项目的阶段顺序天然固定，
 //! 用静态结构能把每层的输入输出边界尽早钉死，后续排错和调试也更直接。
 
+use crate::ast::AstTargetDialect;
+use crate::debug::DebugDetail;
 use crate::parser::RawChunk;
+use crate::timing::TimingCollector;
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
 use super::contracts::{
     AstChunk, CfgGraph, DataflowFacts, GeneratedChunk, GraphFacts, HirChunk, LoweredChunk,
     NamingResult, ReadabilityResult, StructureFacts,
 };
-use super::options::DecompileDialect;
+use super::options::{DecompileDialect, DecompileOptions};
 
 /// 主反编译 pipeline 的固定阶段顺序。
 #[derive(
@@ -47,6 +50,26 @@ pub enum DecompileStage {
     Naming,
     #[strum(serialize = "generate")]
     Generate,
+}
+
+/// 某个阶段导出的调试文本。
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StageDebugOutput {
+    pub stage: DecompileStage,
+    pub detail: DebugDetail,
+    pub content: String,
+}
+
+/// 一次主 pipeline 调用期间，各阶段共享的只读上下文。
+///
+/// 阶段主入口会直接接收 `DecompileState + DecompileContext`：前者承载已完成产物和当前
+/// 阶段输出槽位，后者承载本轮调用的字节输入、选项、目标方言和 timing collector。
+/// 这样每一层可以在自己的主体方法里读取真正需要的事实，调度表只负责顺序和生命周期。
+pub(crate) struct DecompileContext<'a> {
+    pub(crate) bytes: &'a [u8],
+    pub(crate) options: &'a DecompileOptions,
+    pub(crate) timings: &'a TimingCollector,
+    pub(crate) requested_target: AstTargetDialect,
 }
 
 impl DecompileStage {
@@ -109,64 +132,5 @@ impl DecompileState {
 
     pub(crate) fn mark_completed(&mut self, stage: DecompileStage) {
         self.completed_stage = Some(stage);
-    }
-
-    /// 顺序 pipeline 内部读取已完成阶段产物时使用这些 accessor。
-    ///
-    /// `DecompileState` 对外仍保留 `Option<T>`，因为目标阶段可能提前停止；
-    /// 但 pipeline 自己按固定顺序推进，读取前序产物时只表达这个顺序不变量，
-    /// 不在每个阶段重复写一份防御式校验。
-    pub(crate) fn raw_chunk(&self) -> &RawChunk {
-        required_stage_output(&self.raw_chunk, DecompileStage::Parse)
-    }
-
-    pub(crate) fn lowered(&self) -> &LoweredChunk {
-        required_stage_output(&self.lowered, DecompileStage::Transform)
-    }
-
-    pub(crate) fn cfg(&self) -> &CfgGraph {
-        required_stage_output(&self.cfg, DecompileStage::Cfg)
-    }
-
-    pub(crate) fn graph_facts(&self) -> &GraphFacts {
-        required_stage_output(&self.graph_facts, DecompileStage::GraphFacts)
-    }
-
-    pub(crate) fn dataflow(&self) -> &DataflowFacts {
-        required_stage_output(&self.dataflow, DecompileStage::Dataflow)
-    }
-
-    pub(crate) fn structure_facts(&self) -> &StructureFacts {
-        required_stage_output(&self.structure_facts, DecompileStage::StructureFacts)
-    }
-
-    pub(crate) fn hir(&self) -> &HirChunk {
-        required_stage_output(&self.hir, DecompileStage::Hir)
-    }
-
-    pub(crate) fn ast(&self) -> &AstChunk {
-        required_stage_output(&self.ast, DecompileStage::Ast)
-    }
-
-    pub(crate) fn readability(&self) -> &ReadabilityResult {
-        required_stage_output(&self.readability, DecompileStage::Readability)
-    }
-
-    pub(crate) fn naming(&self) -> &NamingResult {
-        required_stage_output(&self.naming, DecompileStage::Naming)
-    }
-
-    pub(crate) fn generated(&self) -> &GeneratedChunk {
-        required_stage_output(&self.generated, DecompileStage::Generate)
-    }
-}
-
-fn required_stage_output<T>(output: &Option<T>, stage: DecompileStage) -> &T {
-    match output {
-        Some(output) => output,
-        None => unreachable!(
-            "pipeline invariant violated: stage `{}` output is unavailable",
-            stage
-        ),
     }
 }

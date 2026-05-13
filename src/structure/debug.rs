@@ -1,14 +1,15 @@
 //! 这个文件承载 StructureFacts 层的共享调试输出。
 //!
 //! 结构候选本身就偏“解释型”事实，所以这里重点把 header / merge / exits /
-//! reducible 这些最值钱的信息稳定打印出来，方便我们快速排查恢复决策。
+//! reducible 这些最值钱的信息稳定打印出来。stage dump 入口直接从主 pipeline state
+//! 读取 StructureFacts，方便阶段表引用本层函数。
 
 use std::fmt::Write as _;
 
 use crate::debug::{
     DebugColorMode, DebugDetail, DebugFilters, FocusPlan, ProtoSummaryRow, build_proto_nodes,
-    colorize_debug_text, compute_focus_plan, format_breadcrumb, format_display_set,
-    format_proto_summary_row,
+    colorize_debug_text, compute_focus_plan, define_stage_dump, format_breadcrumb,
+    format_display_set, format_proto_summary_row,
 };
 
 use super::common::{
@@ -26,8 +27,19 @@ struct ProtoEntry<'a> {
     facts: &'a StructureFacts,
 }
 
+define_stage_dump! {
+    /// StructureFacts 阶段的调试导出。
+    pub fn dump_structure(state, options) => StructureFacts,
+        dump_structure_facts(
+            state.structure_facts.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
+
 /// 输出 StructureFacts 的人类可读摘要。
-pub fn dump_structure(
+fn dump_structure_facts(
     structure: &StructureFacts,
     detail: DebugDetail,
     filters: &DebugFilters,

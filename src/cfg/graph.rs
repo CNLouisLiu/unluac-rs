@@ -94,10 +94,29 @@ impl GraphAnalysis {
     }
 }
 
-/// 对整个 CFG 树递归计算图事实。
-pub fn analyze_graph_facts(cfg: &CfgGraph) -> GraphFacts {
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
+
+/// GraphFacts 阶段入口：从 CFG 槽位读取图，写回稳定图事实。
+pub(crate) fn analyze_graph_facts(
+    state: &mut DecompileState,
+    _context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    fn analyze_cfg_graph(cfg: &CfgGraph) -> GraphFacts {
+        let analysis = GraphAnalysis::analyze(&cfg.cfg);
+        let children = cfg.children.iter().map(analyze_cfg_graph).collect();
+        analysis.into_graph_facts(children)
+    }
+
+    let cfg = state.cfg.as_ref().unwrap();
+    state.graph_facts = Some(analyze_cfg_graph(cfg));
+    Ok(())
+}
+
+/// 对整个 CFG 树递归计算图事实，供局部测试按显式事实调用。
+#[cfg(test)]
+pub fn compute_graph_facts(cfg: &CfgGraph) -> GraphFacts {
     let analysis = GraphAnalysis::analyze(&cfg.cfg);
-    let children = cfg.children.iter().map(analyze_graph_facts).collect();
+    let children = cfg.children.iter().map(compute_graph_facts).collect();
     analysis.into_graph_facts(children)
 }
 

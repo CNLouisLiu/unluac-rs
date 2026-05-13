@@ -11,6 +11,7 @@
 //! 这里刻意只保留 orchestrator，避免再次把所有逻辑重新堆回一个巨型文件。
 
 use crate::ast::AstModule;
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::hir::HirModule;
 
 use super::NamingError;
@@ -22,12 +23,23 @@ use super::hints::collect_function_hints;
 use super::lexical::collect_lexical_contexts;
 use super::validate::validate_readability_ast;
 
-/// 对外的 Naming 入口。
+/// Naming 阶段入口：从 HIR/Readability 槽位收集证据并写回 NameMap。
+pub(crate) fn assign_names(
+    state: &mut DecompileState,
+    context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let readability = state.readability.as_ref().unwrap();
+    let hir = state.hir.as_ref().unwrap();
+    state.naming = Some(assign_name_map(readability, hir, context.options.naming)?);
+    Ok(())
+}
+
+/// 对外的 Naming 显式事实入口。
 ///
 /// 这个 convenience wrapper 内部先收集 evidence 再做分配。
 /// 分配核心已经下沉到 `assign_names_with_evidence()`：后者只消费预先构建好的
 /// Naming 证据，不再直接碰 parser 原始结构。
-pub fn assign_names(
+pub fn assign_name_map(
     module: &AstModule,
     hir: &HirModule,
     options: NamingOptions,

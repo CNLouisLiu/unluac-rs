@@ -12,7 +12,8 @@ use super::collective::try_wrap_missing_collective_suffix;
 use super::facts::{BlockFacts, MissingGlobals, VisibleGlobals};
 use super::insert::insert_missing_global_decls;
 use super::merge::merge_seed_global_runs;
-use crate::ast::common::{AstBlock, AstDialectVersion, AstModule};
+use crate::ast::DecompileDialect;
+use crate::ast::common::{AstBlock, AstModule};
 
 pub(in crate::ast::readability) fn apply(
     module: &mut AstModule,
@@ -23,7 +24,7 @@ pub(in crate::ast::readability) fn apply(
     }
 
     let mut pass = GlobalDeclPrettyPass {
-        infer_missing: context.target.version != AstDialectVersion::Lua55,
+        infer_missing: context.target.version != DecompileDialect::Lua55,
     };
     rewrite_module_scoped(module, &VisibleGlobals::default(), &mut pass)
 }

@@ -4,7 +4,7 @@ use crate::ast::{
     AstAssign, AstBindingRef, AstBlock, AstCallExpr, AstCallKind, AstCallStmt, AstExpr,
     AstFunctionDecl, AstFunctionExpr, AstFunctionName, AstLValue, AstLocalAttr, AstLocalBinding,
     AstLocalDecl, AstLocalFunctionDecl, AstLocalOrigin, AstModule, AstNamePath, AstNameRef,
-    AstStmt, AstSyntheticLocalId, AstTableConstructor, AstTargetDialect, make_readable,
+    AstStmt, AstSyntheticLocalId, AstTableConstructor, AstTargetDialect, make_readable_module,
 };
 use crate::hir::{HirProtoRef, ParamId, TempId};
 use crate::readability::ReadabilityOptions;
@@ -119,9 +119,9 @@ fn installer_function_with_method_export() -> AstFunctionExpr {
 }
 
 fn make_lua55_readable(module: &AstModule) -> AstModule {
-    make_readable(
+    make_readable_module(
         module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         ReadabilityOptions::default(),
         &TimingCollector::disabled(),
         &[],
@@ -204,7 +204,7 @@ fn keeps_non_installer_iife_as_direct_function_call() {
     let changed = apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         },
     );

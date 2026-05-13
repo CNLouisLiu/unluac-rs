@@ -9,7 +9,8 @@ mod dataflow;
 mod debug;
 mod graph;
 
-pub use build::build_cfg_proto;
+pub use build::build_cfg_graph;
+pub(crate) use build::build_cfg_proto;
 pub use common::{
     BasicBlock, BlockKind, BlockRef, Cfg, CfgEdge, CfgGraph, CompactSet, DataflowFacts, Def, DefId,
     DominatorTree, EdgeKind, EdgeRef, EffectTag, GraphFacts, InstrEffect, InstrRange,
@@ -17,6 +18,9 @@ pub use common::{
     OpenDefId, OpenUseSite, PhiCandidate, PhiId, PhiIncoming, PostDominatorTree, RegValueMap,
     SideEffectSummary, SsaValue, UseSite, ValueMapRef, ValueSetRef,
 };
-pub use dataflow::analyze_dataflow;
+pub(crate) use dataflow::analyze_dataflow;
+pub use dataflow::compute_dataflow_facts;
 pub use debug::{dump_cfg, dump_dataflow, dump_graph_facts};
-pub use graph::analyze_graph_facts;
+pub(crate) use graph::analyze_graph_facts;
+#[cfg(test)]
+pub use graph::compute_graph_facts;

@@ -83,7 +83,7 @@ fn lower_ast_preserves_method_call_alias_scaffolding_for_readability() {
 
     let ast = lower_ast(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
         GenerateMode::Strict,
     )
     .expect("ast lowering should succeed");
@@ -190,7 +190,7 @@ fn lower_ast_forwards_multiret_call_carrier_into_final_call_arg() {
 
     let ast = lower_ast(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         GenerateMode::Strict,
     )
     .expect("ast lowering should forward multiret call carrier");
@@ -334,7 +334,7 @@ fn lower_ast_preserves_installer_iife_scaffolding_for_readability() {
 
     let ast = lower_ast(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         GenerateMode::Strict,
     )
     .expect("ast lowering should preserve installer iife for readability");
@@ -405,7 +405,7 @@ fn lower_ast_marks_single_value_final_call_arg_explicitly() {
 
     let ast = lower_ast(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Luau),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luau),
         GenerateMode::Strict,
     )
     .expect("ast lowering should preserve final single-value call args");

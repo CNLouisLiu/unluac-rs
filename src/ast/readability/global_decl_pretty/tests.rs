@@ -57,7 +57,7 @@ fn merges_seed_locals_into_single_multi_global_decl_in_seed_order() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -124,7 +124,7 @@ fn lua55_does_not_infer_const_global_decl_for_missing_readonly_globals_inside_ne
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -199,7 +199,7 @@ fn lua55_does_not_infer_mutable_global_prelude_when_outer_block_reads_name_writt
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -229,7 +229,7 @@ fn lua55_does_not_add_global_decl_without_explicit_global_evidence() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -270,7 +270,7 @@ fn lua55_infers_missing_globals_after_existing_leading_global_decl_run() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));
@@ -372,7 +372,7 @@ fn lua55_wraps_terminal_missing_const_globals_in_collective_do_block() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: Default::default(),
         }
     ));

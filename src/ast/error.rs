@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use super::common::AstDialectVersion;
+use crate::ast::DecompileDialect;
 
 /// HIR -> AST lowering 可能失败的原因。
 #[derive(Debug, Error)]
@@ -11,7 +11,7 @@ pub enum AstLowerError {
         "target dialect `{dialect}` does not support feature `{feature}` required by {context}"
     )]
     UnsupportedFeature {
-        dialect: AstDialectVersion,
+        dialect: DecompileDialect,
         feature: &'static str,
         context: &'static str,
     },

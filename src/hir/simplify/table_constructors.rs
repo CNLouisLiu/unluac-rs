@@ -19,7 +19,7 @@ mod scan;
 
 use std::collections::BTreeMap;
 
-use crate::ast::AstDialectVersion;
+use crate::ast::DecompileDialect;
 use crate::hir::common::{HirAssign, HirExpr, HirLValue, HirProto, HirStmt, LocalId, TempId};
 
 use self::bindings::{
@@ -108,7 +108,7 @@ struct RebuildScratch {
 
 pub(super) fn stabilize_table_constructors_in_proto(
     proto: &mut HirProto,
-    dialect: AstDialectVersion,
+    dialect: DecompileDialect,
 ) -> bool {
     let materialized_bindings = collect_materialized_binding_counts(&proto.body);
     let mut pass = TableConstructorPass {
@@ -120,7 +120,7 @@ pub(super) fn stabilize_table_constructors_in_proto(
 
 struct TableConstructorPass {
     materialized_bindings: BTreeMap<TableBinding, usize>,
-    dialect: AstDialectVersion,
+    dialect: DecompileDialect,
 }
 
 impl HirRewritePass for TableConstructorPass {

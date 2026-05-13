@@ -4,13 +4,14 @@
 //! 版本头、字符串表、平铺 proto 表和混合常量表。这里按 Luau loader 的真实格式
 //! 直接解码，避免在公共层伪造 PUC-Lua 头或常量池形状。
 
+use crate::decompile::DecompileDialect;
 use crate::parser::error::ParseError;
 use crate::parser::options::ParseOptions;
 use crate::parser::raw::{
     ChunkHeader, ChunkLayout, DecodedText, Dialect, DialectConstPoolExtra, DialectDebugExtra,
-    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, DialectVersion,
-    LuauChunkLayout, Origin, ProtoFrameInfo, ProtoLineRange, ProtoSignature, RawChunk,
-    RawConstPool, RawConstPoolCommon, RawDebugInfo, RawDebugInfoCommon, RawInstr, RawInstrOpcode,
+    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, LuauChunkLayout,
+    Origin, ProtoFrameInfo, ProtoLineRange, ProtoSignature, RawChunk, RawConstPool,
+    RawConstPoolCommon, RawDebugInfo, RawDebugInfoCommon, RawInstr, RawInstrOpcode,
     RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto, RawProtoCommon, RawString,
     RawUpvalueInfo, RawUpvalueInfoCommon, Span,
 };
@@ -139,7 +140,7 @@ impl LuauParserState {
 
         Ok(ChunkHeader {
             dialect: Dialect::Luau,
-            version: DialectVersion::Luau,
+            version: DecompileDialect::Luau,
             layout: ChunkLayout::Luau(LuauChunkLayout {
                 bytecode_version,
                 type_version,

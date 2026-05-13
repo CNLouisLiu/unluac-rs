@@ -9,6 +9,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::decompile::DecompileDialect;
 use crate::hir::{HirLabelId, HirProtoRef, LocalId, ParamId, TempId, UpvalueId};
 use strum_macros::{Display, IntoStaticStr};
 
@@ -183,7 +184,7 @@ pub struct AstNamePath {
 /// 目标语法方言。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AstTargetDialect {
-    pub version: AstDialectVersion,
+    pub version: DecompileDialect,
     pub caps: AstDialectCaps,
 }
 
@@ -215,26 +216,7 @@ pub enum AstFeature {
     GlobalConst,
 }
 
-/// 当前支持的目标方言版本。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, IntoStaticStr)]
-pub enum AstDialectVersion {
-    #[strum(serialize = "lua5.1")]
-    Lua51,
-    #[strum(serialize = "lua5.2")]
-    Lua52,
-    #[strum(serialize = "lua5.3")]
-    Lua53,
-    #[strum(serialize = "lua5.4")]
-    Lua54,
-    #[strum(serialize = "lua5.5")]
-    Lua55,
-    #[strum(serialize = "luajit")]
-    LuaJit,
-    #[strum(serialize = "luau")]
-    Luau,
-}
-
-impl AstDialectVersion {
+impl DecompileDialect {
     /// 判断 `name` 是否是该方言版本下的保留关键字。
     ///
     /// `goto`、`continue`、`global` 是 dialect-specific 的：
@@ -248,7 +230,7 @@ impl AstDialectVersion {
         match name {
             "goto" => matches!(
                 self,
-                Self::Lua52 | Self::Lua53 | Self::Lua54 | Self::Lua55 | Self::LuaJit
+                Self::Lua52 | Self::Lua53 | Self::Lua54 | Self::Lua55 | Self::Luajit
             ),
             "continue" => matches!(self, Self::Luau),
             "global" => matches!(self, Self::Lua55),
@@ -294,9 +276,9 @@ fn is_base_lua_keyword(name: &str) -> bool {
 }
 
 impl AstTargetDialect {
-    pub const fn new(version: AstDialectVersion) -> Self {
+    pub const fn new(version: DecompileDialect) -> Self {
         let caps = match version {
-            AstDialectVersion::Lua51 => AstDialectCaps {
+            DecompileDialect::Lua51 => AstDialectCaps {
                 goto_label: false,
                 continue_stmt: false,
                 local_const: false,
@@ -304,7 +286,7 @@ impl AstTargetDialect {
                 global_decl: false,
                 global_const: false,
             },
-            AstDialectVersion::Lua52 | AstDialectVersion::Lua53 => AstDialectCaps {
+            DecompileDialect::Lua52 | DecompileDialect::Lua53 => AstDialectCaps {
                 goto_label: true,
                 continue_stmt: false,
                 local_const: false,
@@ -312,7 +294,7 @@ impl AstTargetDialect {
                 global_decl: false,
                 global_const: false,
             },
-            AstDialectVersion::Lua54 => AstDialectCaps {
+            DecompileDialect::Lua54 => AstDialectCaps {
                 goto_label: true,
                 continue_stmt: false,
                 local_const: true,
@@ -320,7 +302,7 @@ impl AstTargetDialect {
                 global_decl: false,
                 global_const: false,
             },
-            AstDialectVersion::Lua55 => AstDialectCaps {
+            DecompileDialect::Lua55 => AstDialectCaps {
                 goto_label: true,
                 continue_stmt: false,
                 local_const: true,
@@ -328,7 +310,7 @@ impl AstTargetDialect {
                 global_decl: true,
                 global_const: true,
             },
-            AstDialectVersion::LuaJit => AstDialectCaps {
+            DecompileDialect::Luajit => AstDialectCaps {
                 goto_label: true,
                 continue_stmt: false,
                 local_const: false,
@@ -336,7 +318,7 @@ impl AstTargetDialect {
                 global_decl: false,
                 global_const: false,
             },
-            AstDialectVersion::Luau => AstDialectCaps {
+            DecompileDialect::Luau => AstDialectCaps {
                 goto_label: false,
                 continue_stmt: true,
                 local_const: false,
@@ -348,7 +330,7 @@ impl AstTargetDialect {
         Self { version, caps }
     }
 
-    pub const fn relaxed_for_lowering(version: AstDialectVersion) -> Self {
+    pub const fn relaxed_for_lowering(version: DecompileDialect) -> Self {
         let mut caps = Self::new(version).caps;
         caps.goto_label = true;
         caps.local_const = true;

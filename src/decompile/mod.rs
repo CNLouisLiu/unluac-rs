@@ -4,29 +4,32 @@
 //! 避免 CLI、单测和后续 wasm 封装各自复制一套流程，最后行为慢慢分叉。
 
 mod contracts;
-mod debug;
 mod error;
 mod options;
 mod pipeline;
+mod stages;
 mod state;
 
+pub use crate::ast::{dump_ast, dump_readability};
+pub use crate::cfg::{dump_cfg, dump_dataflow, dump_graph_facts};
 pub use crate::debug::{DebugColorMode, DebugDetail, DebugFilters, ProtoDepth};
+pub use crate::generate::dump_generate;
 pub use crate::generate::{GenerateMode, GenerateOptions, QuoteStyle, TableStyle};
+pub use crate::hir::dump_hir;
 pub use crate::naming::{
-    FunctionNameMap, NameInfo, NameMap, NameSource, NamingMode, NamingOptions,
+    FunctionNameMap, NameInfo, NameMap, NameSource, NamingMode, NamingOptions, dump_naming,
 };
+pub use crate::parser::dump_parser;
 pub use crate::readability::ReadabilityOptions;
+pub use crate::structure::dump_structure;
 pub use crate::timing::{TimingNode, TimingReport, render_timing_report};
+pub use crate::transformer::dump_lir;
 pub use contracts::{
     AstChunk, CfgGraph, DataflowFacts, GeneratedChunk, GraphFacts, HirChunk, LoweredChunk,
     NamingResult, ReadabilityResult, StructureFacts,
 };
-pub use debug::{
-    DebugOptions, StageDebugOutput, dump_ast, dump_cfg, dump_dataflow, dump_generate,
-    dump_graph_facts, dump_hir, dump_lir, dump_naming, dump_parser, dump_readability,
-    dump_structure,
-};
 pub use error::DecompileError;
-pub use options::{DecompileDialect, DecompileOptions};
+pub use options::{DebugOptions, DecompileDialect, DecompileOptions};
 pub use pipeline::{DecompileResult, decompile};
-pub use state::{DecompileStage, DecompileState};
+pub(crate) use state::DecompileContext;
+pub use state::{DecompileStage, DecompileState, StageDebugOutput};

@@ -23,17 +23,36 @@ pub use common::{
 pub use debug::{dump_lir, format_low_instr};
 pub use error::TransformError;
 
-use crate::parser::{DialectVersion, RawChunk};
+use crate::decompile::{DecompileContext, DecompileDialect, DecompileError, DecompileState};
+use crate::parser::RawChunk;
+
+/// Transform 阶段入口：从 Parse 槽位读取 raw chunk，写回统一 low-IR。
+pub(crate) fn lower_chunk(
+    state: &mut DecompileState,
+    _context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let raw_chunk = state.raw_chunk.as_ref().unwrap();
+    state.lowered = Some(match raw_chunk.header.version {
+        DecompileDialect::Lua51 => dialect::lua51::lower_chunk(raw_chunk),
+        DecompileDialect::Lua52 => dialect::lua52::lower_chunk(raw_chunk),
+        DecompileDialect::Lua53 => dialect::lua53::lower_chunk(raw_chunk),
+        DecompileDialect::Lua54 => dialect::lua54::lower_chunk(raw_chunk),
+        DecompileDialect::Lua55 => dialect::lua55::lower_chunk(raw_chunk),
+        DecompileDialect::Luajit => dialect::luajit::lower_chunk(raw_chunk),
+        DecompileDialect::Luau => dialect::luau::lower_chunk(raw_chunk),
+    }?);
+    Ok(())
+}
 
 /// 根据 chunk 的实际 dialect 自动选择 lowering 实现。
-pub fn lower_chunk(chunk: &RawChunk) -> Result<LoweredChunk, TransformError> {
+pub fn lower_raw_chunk(chunk: &RawChunk) -> Result<LoweredChunk, TransformError> {
     match chunk.header.version {
-        DialectVersion::Lua51 => dialect::lua51::lower_chunk(chunk),
-        DialectVersion::Lua52 => dialect::lua52::lower_chunk(chunk),
-        DialectVersion::Lua53 => dialect::lua53::lower_chunk(chunk),
-        DialectVersion::Lua54 => dialect::lua54::lower_chunk(chunk),
-        DialectVersion::Lua55 => dialect::lua55::lower_chunk(chunk),
-        DialectVersion::LuaJit => dialect::luajit::lower_chunk(chunk),
-        DialectVersion::Luau => dialect::luau::lower_chunk(chunk),
+        DecompileDialect::Lua51 => dialect::lua51::lower_chunk(chunk),
+        DecompileDialect::Lua52 => dialect::lua52::lower_chunk(chunk),
+        DecompileDialect::Lua53 => dialect::lua53::lower_chunk(chunk),
+        DecompileDialect::Lua54 => dialect::lua54::lower_chunk(chunk),
+        DecompileDialect::Lua55 => dialect::lua55::lower_chunk(chunk),
+        DecompileDialect::Luajit => dialect::luajit::lower_chunk(chunk),
+        DecompileDialect::Luau => dialect::luau::lower_chunk(chunk),
     }
 }

@@ -5,13 +5,13 @@
 
 use thiserror::Error;
 
-use crate::parser::DialectVersion;
+use crate::decompile::DecompileDialect;
 
 /// raw -> low-IR lowering 期间可能产生的错误。
 #[derive(Debug, Error)]
 pub enum TransformError {
     #[error("unsupported transform dialect `{version:?}`")]
-    UnsupportedDialect { version: DialectVersion },
+    UnsupportedDialect { version: DecompileDialect },
     #[error("unsupported opcode `{opcode}` at raw pc {raw_pc}")]
     UnsupportedOpcode { raw_pc: u32, opcode: &'static str },
     #[error("unexpected operands for opcode `{opcode}` at raw pc {raw_pc}: expected {expected}")]

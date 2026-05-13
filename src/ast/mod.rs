@@ -9,14 +9,16 @@ pub(crate) mod pretty;
 mod readability;
 pub(crate) mod traverse;
 
+pub use crate::decompile::DecompileDialect;
 pub use crate::readability::ReadabilityOptions;
 pub use build::lower_ast;
+pub(crate) use build::lower_ast_for_generate;
 pub use common::{
     AstAssign, AstBinaryExpr, AstBinaryOpKind, AstBindingRef, AstBlock, AstCallExpr, AstCallKind,
-    AstCallStmt, AstDialectCaps, AstDialectVersion, AstExpr, AstFeature, AstFieldAccess,
-    AstFunctionDecl, AstFunctionExpr, AstFunctionName, AstGenericFor, AstGlobalAttr,
-    AstGlobalBinding, AstGlobalBindingTarget, AstGlobalDecl, AstGlobalName, AstGoto, AstIf,
-    AstIndexAccess, AstLValue, AstLabel, AstLabelId, AstLocalAttr, AstLocalBinding, AstLocalDecl,
+    AstCallStmt, AstDialectCaps, AstExpr, AstFeature, AstFieldAccess, AstFunctionDecl,
+    AstFunctionExpr, AstFunctionName, AstGenericFor, AstGlobalAttr, AstGlobalBinding,
+    AstGlobalBindingTarget, AstGlobalDecl, AstGlobalName, AstGoto, AstIf, AstIndexAccess,
+    AstLValue, AstLabel, AstLabelId, AstLocalAttr, AstLocalBinding, AstLocalDecl,
     AstLocalFunctionDecl, AstLocalOrigin, AstLogicalExpr, AstMethodCallExpr, AstModule,
     AstNamePath, AstNameRef, AstNumericFor, AstRecordField, AstRepeat, AstReturn, AstStmt,
     AstSyntheticLocalId, AstTableConstructor, AstTableField, AstTableKey, AstTargetDialect,
@@ -26,3 +28,5 @@ pub use debug::{dump_ast, dump_readability};
 pub use error::AstLowerError;
 pub(crate) use features::collect_ast_features;
 pub(crate) use readability::make_readable;
+#[cfg(test)]
+pub(crate) use readability::make_readable_module;

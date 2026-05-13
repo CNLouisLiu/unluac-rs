@@ -1,15 +1,17 @@
 //! 这个文件承载 HIR 层的共享调试输出。
 //!
 //! HIR dump 的重点是把 proto 边界、绑定数量和 stmt tree 稳定打印出来，并让残留
-//! 的 `Temp / Goto / Label / Continue / Unstructured` 一眼可见。如果最终 dump 里
-//! 还出现 `decision(...)`，那说明 HIR 末端的决策图消除退化了。
+//! 的 `Temp / Goto / Label / Continue / Unstructured` 一眼可见。stage dump 入口直接
+//! 从主 pipeline state 读取 HIR module；如果最终 dump 里还出现 `decision(...)`，
+//! 那说明 HIR 末端的决策图消除退化了。
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use crate::debug::{
     DebugColorMode, DebugDetail, DebugFilters, FocusPlan, ProtoSummaryRow, build_proto_nodes,
-    colorize_debug_text, compute_focus_plan, format_breadcrumb, format_proto_summary_row,
+    colorize_debug_text, compute_focus_plan, define_stage_dump, format_breadcrumb,
+    format_proto_summary_row,
 };
 
 use super::common::{
@@ -25,8 +27,19 @@ pub(super) struct HirProtoEntry<'a> {
     pub proto: &'a HirProto,
 }
 
+define_stage_dump! {
+    /// HIR 阶段的调试导出。
+    pub fn dump_hir(state, options) => Hir,
+        dump_hir_module(
+            state.hir.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
+
 /// 输出 HIR 的人类可读摘要。
-pub fn dump_hir(
+pub(crate) fn dump_hir_module(
     module: &HirModule,
     detail: DebugDetail,
     filters: &DebugFilters,

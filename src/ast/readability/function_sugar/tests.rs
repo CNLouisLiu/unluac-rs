@@ -84,7 +84,7 @@ fn lowers_field_function_assignment_into_method_decl_when_method_call_evidence_e
 
     let changed = run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
     );
     assert!(changed);
 
@@ -176,7 +176,7 @@ fn keeps_recursive_local_function_binding_before_table_slot_forwarding() {
 
     let changed = run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
     );
     assert!(changed);
 
@@ -267,7 +267,7 @@ fn inlines_constructor_locals_and_function_field_into_terminal_return_call() {
 
     let changed = run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua54),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua54),
     );
     assert!(changed);
 
@@ -344,7 +344,7 @@ fn inlines_trailing_table_function_assignment_back_into_terminal_constructor_loc
 
     let changed = run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
     );
     assert!(changed);
 
@@ -452,7 +452,7 @@ fn inlines_nested_constructor_locals_into_terminal_local_call_initializer() {
 
     let changed = run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::LuaJit),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luajit),
     );
     assert!(changed);
 
@@ -531,7 +531,7 @@ fn recovers_method_call_from_direct_field_alias_call_stmt() {
     assert!(apply(
         &mut module,
         super::ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         },
     ));
@@ -598,7 +598,7 @@ fn chains_method_calls_after_recovering_alias_scaffolding() {
 
     let changed = run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
     );
     assert!(changed);
 
@@ -667,7 +667,7 @@ fn recovers_method_alias_inside_truthy_ternary_local_initializer() {
     assert!(apply(
         &mut module,
         super::ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         },
     ));
@@ -726,7 +726,7 @@ fn recovers_direct_method_call_inside_truthy_ternary_local_initializer() {
 
     assert!(run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::LuaJit),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luajit),
     ));
 
     assert!(matches!(
@@ -774,7 +774,7 @@ fn recovers_direct_method_call_in_if_condition() {
 
     assert!(run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::LuaJit),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luajit),
     ));
 
     assert!(matches!(
@@ -826,7 +826,7 @@ fn recovers_method_alias_in_if_condition() {
 
     assert!(run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::LuaJit),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luajit),
     ));
 
     assert!(matches!(
@@ -881,7 +881,7 @@ fn keeps_direct_call_in_truthy_ternary_when_receiver_is_not_a_simple_name() {
 
     assert!(!run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::LuaJit),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luajit),
     ));
     assert!(matches!(
         module.body.stmts.as_slice(),
@@ -936,7 +936,7 @@ fn recovers_method_alias_inside_nested_call_argument() {
     assert!(apply(
         &mut module,
         super::ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         },
     ));
@@ -1003,7 +1003,7 @@ fn recovers_direct_method_call_with_receiver_alias_local() {
 
     assert!(run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::LuaJit),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luajit),
     ));
 
     assert!(matches!(
@@ -1059,7 +1059,7 @@ fn recovers_nested_direct_method_call_with_receiver_alias_local_in_assign_value(
 
     assert!(run_function_sugar_to_fixed_point(
         &mut module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::LuaJit),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Luajit),
     ));
 
     assert!(matches!(

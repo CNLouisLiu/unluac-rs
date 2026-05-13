@@ -6,6 +6,7 @@ mod patterns;
 
 use std::collections::BTreeSet;
 
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::generate::GenerateMode;
 use crate::hir::{HirBlock, HirExpr, HirGenericFor, HirModule, HirStmt, TempId};
 
@@ -33,6 +34,30 @@ pub fn lower_ast(
 ) -> Result<AstModule, AstLowerError> {
     let mut lowerer = AstLowerer::new(module, target, generate_mode);
     lowerer.lower_module()
+}
+
+/// 按最终输出模式选择 AST lowering 使用的方言能力。
+///
+/// `Permissive` 输出允许 Generate 给出“目标方言不支持但仍尝试输出”的 warning，
+/// 因此 AST 阶段不能先用请求方言的严格能力把这些节点拦掉；这里集中放宽 lowering
+/// 能力，避免 decompile 调度层自己记住 AST 的 target 选择细节。
+pub(crate) fn lower_ast_for_generate(
+    state: &mut DecompileState,
+    context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let lowering_target = match context.options.generate.mode {
+        GenerateMode::Strict => context.requested_target,
+        GenerateMode::Permissive => {
+            AstTargetDialect::relaxed_for_lowering(context.requested_target.version)
+        }
+    };
+    let hir = state.hir.as_ref().unwrap();
+    state.ast = Some(lower_ast(
+        hir,
+        lowering_target,
+        context.options.generate.mode,
+    )?);
+    Ok(())
 }
 
 struct AstLowerer<'a> {

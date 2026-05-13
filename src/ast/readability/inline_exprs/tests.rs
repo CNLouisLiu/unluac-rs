@@ -47,9 +47,9 @@ fn inlines_safe_expr_into_single_return_within_threshold() {
         },
     };
 
-    let module = crate::ast::make_readable(
+    let module = crate::ast::make_readable_module(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         ReadabilityOptions::default(),
         &TimingCollector::disabled(),
         &[],
@@ -100,7 +100,7 @@ fn does_not_inline_call_arg_when_expr_exceeds_arg_threshold() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions {
                 args_inline_max_complexity: 3,
                 ..ReadabilityOptions::default()
@@ -142,7 +142,7 @@ fn inlines_temp_into_index_slot_with_custom_threshold() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions {
                 index_inline_max_complexity: 4,
                 ..ReadabilityOptions::default()
@@ -195,7 +195,7 @@ fn does_not_inline_expr_with_potential_runtime_behavior_changes() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions {
                 args_inline_max_complexity: usize::MAX,
                 ..ReadabilityOptions::default()
@@ -240,7 +240,7 @@ fn inlines_named_field_access_base_into_adjacent_index_assign() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions {
                 access_base_inline_max_complexity: 5,
                 ..ReadabilityOptions::default()
@@ -313,9 +313,9 @@ fn reruns_field_access_sugar_after_inlining_string_key_alias_in_lvalue() {
         },
     };
 
-    let module = crate::ast::make_readable(
+    let module = crate::ast::make_readable_module(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         ReadabilityOptions::default(),
         &TimingCollector::disabled(),
         &[],
@@ -407,9 +407,9 @@ fn collapses_mechanical_lookup_chain_into_terminal_local_decl() {
         },
     };
 
-    let module = crate::ast::make_readable(
+    let module = crate::ast::make_readable_module(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         ReadabilityOptions::default(),
         &TimingCollector::disabled(),
         &[],
@@ -513,9 +513,9 @@ fn collapses_lookup_only_run_into_index_assign() {
         },
     };
 
-    let module = crate::ast::make_readable(
+    let module = crate::ast::make_readable_module(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         ReadabilityOptions::default(),
         &TimingCollector::disabled(),
         &[],
@@ -593,9 +593,9 @@ fn collapses_single_call_prep_alias_into_terminal_result_decl() {
         },
     };
 
-    let module = crate::ast::make_readable(
+    let module = crate::ast::make_readable_module(
         &module,
-        AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+        AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
         ReadabilityOptions::default(),
         &TimingCollector::disabled(),
         &[],
@@ -670,7 +670,7 @@ fn inlines_recovered_call_alias_into_adjacent_local_initializer_value_expr() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -779,7 +779,7 @@ fn collapses_mechanical_alias_run_into_nested_assignment_expr() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua54),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua54),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -854,7 +854,7 @@ fn inlines_lookup_alias_into_adjacent_field_assign_target_base() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -941,7 +941,7 @@ fn inlines_recovered_call_alias_into_adjacent_local_initializer_call_arg() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -986,7 +986,7 @@ fn inlines_recovered_lookup_alias_into_adjacent_assign_value_expr() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1035,7 +1035,7 @@ fn inlines_recovered_call_alias_into_adjacent_assign_value_expr() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1091,7 +1091,7 @@ fn inlines_mechanical_local_alias_into_adjacent_assign_index() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1173,7 +1173,7 @@ fn collapses_dependent_lookup_chain_into_plain_accumulator_assign() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1243,7 +1243,7 @@ fn does_not_collapse_parallel_lookup_locals_into_plain_assignment() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1296,7 +1296,7 @@ fn does_not_collapse_stage_locals_into_flat_return_values() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua54),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua54),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1354,7 +1354,7 @@ fn does_not_collapse_lookup_stage_chain_into_nested_return_access() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua54),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua54),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1397,7 +1397,7 @@ fn inlines_single_use_local_alias_into_call_callee_with_access_base_threshold() 
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions {
                 access_base_inline_max_complexity: 5,
                 ..ReadabilityOptions::default()
@@ -1453,7 +1453,7 @@ fn does_not_inline_local_alias_into_plain_return_value() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions {
                 access_base_inline_max_complexity: 5,
                 return_inline_max_complexity: usize::MAX,
@@ -1517,7 +1517,7 @@ fn inlines_recovered_constructor_alias_into_direct_return_value() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1564,7 +1564,7 @@ fn inlines_recovered_call_alias_inside_nested_return_value_expr() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1628,7 +1628,7 @@ fn inlines_recovered_call_alias_inside_comparison_operand() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1701,7 +1701,7 @@ fn does_not_inline_debug_hinted_call_alias_inside_comparison_operand() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1765,7 +1765,7 @@ fn collapses_adjacent_local_alias_run_into_final_call_stmt() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1848,7 +1848,7 @@ fn collapses_adjacent_method_call_alias_run_with_table_arg() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1923,7 +1923,7 @@ fn does_not_collapse_method_call_alias_run_with_effectful_table_arg() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -1996,7 +1996,7 @@ fn collapses_adjacent_local_alias_run_into_terminal_return_call() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2071,7 +2071,7 @@ fn inlines_raw_global_alias_into_adjacent_first_call_arg() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2144,7 +2144,7 @@ fn inlines_raw_global_alias_into_later_call_arg_when_prefix_is_barrier_free() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2214,7 +2214,7 @@ fn does_not_inline_raw_global_alias_across_effectful_call_callee() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2268,7 +2268,7 @@ fn does_not_inline_raw_global_alias_past_effectful_earlier_call_arg() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2327,7 +2327,7 @@ fn does_not_collapse_single_call_chain_alias_before_final_call_stmt() {
     assert!(!apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2461,7 +2461,7 @@ fn collapses_indexed_call_alias_run_back_into_final_print_args() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2624,7 +2624,7 @@ fn inlines_local_alias_inside_function_body_after_other_locals() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2739,7 +2739,7 @@ fn collapses_lookup_alias_run_back_into_final_print_args() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2821,7 +2821,7 @@ fn inlines_lookup_alias_inside_nested_return_value() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2886,7 +2886,7 @@ fn folds_access_base_alias_into_adjacent_local_alias_initializer_chain() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -2988,7 +2988,7 @@ fn does_not_count_shadowed_nested_function_locals_as_outer_alias_uses() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua55),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua55),
             options: ReadabilityOptions::default(),
         }
     ));
@@ -3048,7 +3048,7 @@ fn inlines_lookup_alias_into_adjacent_multi_return_call_callee() {
     assert!(apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: ReadabilityOptions::default(),
         }
     ));

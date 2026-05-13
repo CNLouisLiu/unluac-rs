@@ -2,17 +2,31 @@
 //!
 //! 聚焦策略：Generate 的产物是最终 Lua 源码，语法完整性依赖文件级结构（顶层
 //! `return`、重复 `end` 匹配等），任何局部裁剪都会产出非法 Lua。所以这一层
-//! 不支持 `--proto` / `--proto-depth`：若用户传了 `--proto` 这里只会打一条
+//! stage dump 入口直接从主 pipeline state 读取最终生成结果。不支持 `--proto` /
+//! `--proto-depth`：若用户传了 `--proto` 这里只会打一条
 //! 提示行指向 `--stop-after readability --proto N`，然后照样 dump 完整文件。
 
 use std::fmt::Write as _;
 
-use crate::debug::{DebugColorMode, DebugDetail, DebugFilters, colorize_debug_text};
+use crate::debug::{
+    DebugColorMode, DebugDetail, DebugFilters, colorize_debug_text, define_stage_dump,
+};
 
 use super::common::GeneratedChunk;
 
+define_stage_dump! {
+    /// Generate 阶段的调试导出。
+    pub fn dump_generate(state, options) => Generate,
+        dump_generated_chunk(
+            state.generated.as_ref().unwrap(),
+            options.detail,
+            &options.filters,
+            options.color
+        );
+}
+
 /// 输出 Generate 的调试文本。
-pub fn dump_generate(
+fn dump_generated_chunk(
     chunk: &GeneratedChunk,
     detail: DebugDetail,
     filters: &DebugFilters,

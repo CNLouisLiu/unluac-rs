@@ -294,8 +294,27 @@ struct BlockLiveness {
     open_live_out: Vec<bool>,
 }
 
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
+
+/// Dataflow 阶段入口：从 low-IR、CFG 和 GraphFacts 槽位读取事实，写回数据流事实。
+pub(crate) fn analyze_dataflow(
+    state: &mut DecompileState,
+    _context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let lowered = state.lowered.as_ref().unwrap();
+    let cfg = state.cfg.as_ref().unwrap();
+    let graph_facts = state.graph_facts.as_ref().unwrap();
+    state.dataflow = Some(compute_dataflow_facts(
+        &lowered.main,
+        &cfg.cfg,
+        graph_facts,
+        &cfg.children,
+    ));
+    Ok(())
+}
+
 /// 对 proto 树递归计算数据流事实。
-pub fn analyze_dataflow(
+pub fn compute_dataflow_facts(
     proto: &LoweredProto,
     cfg: &Cfg,
     graph_facts: &GraphFacts,
@@ -453,7 +472,7 @@ pub fn analyze_dataflow(
         .zip(child_cfgs.iter())
         .zip(graph_facts.children.iter())
         .map(|((child_proto, child_cfg), child_graph_facts)| {
-            analyze_dataflow(
+            compute_dataflow_facts(
                 child_proto,
                 &child_cfg.cfg,
                 child_graph_facts,

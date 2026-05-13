@@ -5,7 +5,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::ast::AstDialectVersion;
+use crate::ast::DecompileDialect;
 
 /// 取简单参数名候选。
 pub(super) fn alphabetical_name(index: usize) -> Option<String> {
@@ -73,7 +73,7 @@ pub(super) fn is_valid_identifier(candidate: &str) -> bool {
 
 /// 判断是否为 Lua 关键字（保守全集，覆盖所有方言）。
 pub(super) fn is_lua_keyword(candidate: &str) -> bool {
-    AstDialectVersion::is_keyword_in_any_dialect(candidate)
+    DecompileDialect::is_keyword_in_any_dialect(candidate)
 }
 
 /// 预置 Lua 关键字表（保守全集）。

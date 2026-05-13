@@ -15,9 +15,8 @@ mod tests;
 
 use self::lower::{ChildAnalyses, LowerArtifacts, lower_proto};
 use super::simplify::{PassDumpConfig, simplify_hir};
-use crate::decompile::{DecompileOptions, DecompileState};
+use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::hir::common::HirModule;
-use crate::timing::TimingCollector;
 
 use self::exprs::lower_branch_cond;
 use self::helpers::{assign_stmt, branch_stmt, build_label_map_for_summary, goto_block};
@@ -26,26 +25,30 @@ use self::lower::{
     lower_phi_materialization_with_allowed_blocks_except, lower_regular_instr,
 };
 
-/// 对整个 lowered chunk 递归构造 HIR。
+/// HIR 阶段入口：消费结构事实与前序控制/数据流事实，写回 HIR 模块。
 pub(crate) fn analyze_hir(
-    state: &DecompileState,
-    options: &DecompileOptions,
-    timings: &TimingCollector,
-) -> HirModule {
+    state: &mut DecompileState,
+    context: &DecompileContext<'_>,
+) -> Result<(), DecompileError> {
+    let lowered = state.lowered.as_ref().unwrap();
+    let cfg = state.cfg.as_ref().unwrap();
+    let graph_facts = state.graph_facts.as_ref().unwrap();
+    let dataflow = state.dataflow.as_ref().unwrap();
+    let structure_facts = state.structure_facts.as_ref().unwrap();
     let child_analyses = ChildAnalyses {
-        cfg_graphs: &state.cfg().children,
-        graph_facts: &state.graph_facts().children,
-        dataflow: &state.dataflow().children,
-        structure: &state.structure_facts().children,
+        cfg_graphs: &cfg.children,
+        graph_facts: &graph_facts.children,
+        dataflow: &dataflow.children,
+        structure: &structure_facts.children,
     };
     let mut artifacts = LowerArtifacts::default();
-    let entry = timings.record("lower", || {
+    let entry = context.timings.record("lower", || {
         lower_proto(
-            &state.lowered().main,
-            &state.cfg().cfg,
-            state.graph_facts(),
-            state.dataflow(),
-            state.structure_facts(),
+            &lowered.main,
+            &cfg.cfg,
+            graph_facts,
+            dataflow,
+            structure_facts,
             child_analyses,
             &mut artifacts,
         )
@@ -57,20 +60,21 @@ pub(crate) fn analyze_hir(
     };
 
     let dump_config = PassDumpConfig {
-        pass_names: options.debug.dump_passes.clone(),
-        filters: options.debug.filters,
+        pass_names: context.options.debug.dump_passes.clone(),
+        filters: context.options.debug.filters,
     };
 
-    timings.record("simplify", || {
+    context.timings.record("simplify", || {
         simplify_hir(
             &mut module,
-            options.readability,
-            timings,
+            context.options.readability,
+            context.timings,
             &artifacts.promotion_facts,
-            options.generate.mode,
-            options.dialect.into(),
+            context.options.generate.mode,
+            context.options.dialect,
             &dump_config,
         );
     });
-    module
+    state.hir = Some(module);
+    Ok(())
 }

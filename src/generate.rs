@@ -16,5 +16,5 @@ pub use common::{
     GenerateMode, GenerateOptions, GeneratedChunk, QuoteStyle, TableStyle,
 };
 pub use debug::dump_generate;
-pub use emit::generate_chunk;
+pub(crate) use emit::generate_chunk;
 pub use error::GenerateError;

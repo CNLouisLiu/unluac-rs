@@ -3,16 +3,17 @@
 //! 实现直接对照官方 `lundump.c` 的布局规则，目的是让 parser 在源头上
 //! 保真，而不是在更后面的层次再去猜原始结构。
 
+use crate::decompile::DecompileDialect;
 use crate::parser::dialect::puc_lua::{LUA_SIGNATURE, decode_instruction_word};
 use crate::parser::error::ParseError;
 use crate::parser::options::ParseOptions;
 use crate::parser::raw::{
     ChunkHeader, ChunkLayout, DecodedText, Dialect, DialectConstPoolExtra, DialectDebugExtra,
-    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, DialectVersion,
-    Endianness, Origin, ProtoFrameInfo, ProtoLineRange, ProtoSignature, PucLuaChunkLayout,
-    RawChunk, RawConstPool, RawConstPoolCommon, RawDebugInfo, RawDebugInfoCommon, RawInstr,
-    RawInstrOpcode, RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto, RawProtoCommon,
-    RawString, RawUpvalueInfo, RawUpvalueInfoCommon, Span,
+    DialectHeaderExtra, DialectInstrExtra, DialectProtoExtra, DialectUpvalueExtra, Endianness,
+    Origin, ProtoFrameInfo, ProtoLineRange, ProtoSignature, PucLuaChunkLayout, RawChunk,
+    RawConstPool, RawConstPoolCommon, RawDebugInfo, RawDebugInfoCommon, RawInstr, RawInstrOpcode,
+    RawInstrOperands, RawLiteralConst, RawLocalVar, RawProto, RawProtoCommon, RawString,
+    RawUpvalueInfo, RawUpvalueInfoCommon, Span,
 };
 use crate::parser::reader::BinaryReader;
 
@@ -128,7 +129,7 @@ impl Lua51Parser {
 
         Ok(ChunkHeader {
             dialect: Dialect::PucLua,
-            version: DialectVersion::Lua51,
+            version: DecompileDialect::Lua51,
             layout: ChunkLayout::PucLua(PucLuaChunkLayout {
                 format,
                 endianness,

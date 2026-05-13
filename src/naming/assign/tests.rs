@@ -11,7 +11,7 @@ use crate::hir::{
     HirBlock, HirCapture, HirClosureExpr, HirExpr, HirLocalDecl, HirModule, HirProto, HirProtoRef,
     HirReturn, HirStmt, LocalId, ParamId, TempId, UpvalueId,
 };
-use crate::naming::{NameSource, NamingMode, NamingOptions, assign_names};
+use crate::naming::{NameSource, NamingMode, NamingOptions, assign_name_map};
 use crate::parser::{ProtoLineRange, ProtoSignature};
 
 #[test]
@@ -83,7 +83,7 @@ fn heuristic_mode_prefers_field_shape_for_local_chain() {
         },
     };
 
-    let names = assign_names(
+    let names = assign_name_map(
         &ast,
         &hir,
         NamingOptions {
@@ -159,7 +159,7 @@ fn debug_like_mode_uses_function_qualified_binding_ids() {
         },
     };
 
-    let names = assign_names(
+    let names = assign_name_map(
         &ast,
         &hir,
         NamingOptions {
@@ -242,7 +242,8 @@ fn simple_mode_uses_underscore_for_unused_synthetic_local() {
         },
     };
 
-    let names = assign_names(&ast, &hir, NamingOptions::default()).expect("naming should succeed");
+    let names =
+        assign_name_map(&ast, &hir, NamingOptions::default()).expect("naming should succeed");
 
     let function = names.function(HirProtoRef(0)).expect("function names");
     assert_eq!(
@@ -441,7 +442,7 @@ fn capture_provenance_upvalue_keeps_parent_name_when_child_local_conflicts() {
         },
     };
 
-    let names = assign_names(
+    let names = assign_name_map(
         &ast,
         &hir,
         NamingOptions {

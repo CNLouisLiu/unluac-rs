@@ -16,7 +16,7 @@ fn apply_loop_header_merge(module: &AstModule) -> AstModule {
     super::apply(
         &mut module,
         ReadabilityContext {
-            target: AstTargetDialect::new(crate::ast::AstDialectVersion::Lua51),
+            target: AstTargetDialect::new(crate::ast::DecompileDialect::Lua51),
             options: Default::default(),
         },
     );
