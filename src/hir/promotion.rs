@@ -336,9 +336,4 @@ impl ProtoPromotionFacts {
             self.collect_temp_home_slots_in_expr(expr, slots);
         }
     }
-
-    #[cfg(test)]
-    pub(super) fn for_test(temp_home_slots: Vec<Option<usize>>) -> Self {
-        Self { temp_home_slots }
-    }
 }

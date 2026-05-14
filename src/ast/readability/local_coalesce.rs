@@ -542,6 +542,3 @@ fn function_name_references_binding(
     };
     name_matches_binding(&path.root, binding)
 }
-
-#[cfg(test)]
-mod tests;

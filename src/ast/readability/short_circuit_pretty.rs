@@ -316,6 +316,3 @@ fn ast_from_hir_expr(expr: &HirExpr) -> Option<AstExpr> {
         | HirExpr::Unresolved(_) => None,
     }
 }
-
-#[cfg(test)]
-mod tests;

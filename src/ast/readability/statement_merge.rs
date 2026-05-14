@@ -737,6 +737,3 @@ impl AstVisitor for GotoTargetVisitor<'_> {
         false
     }
 }
-
-#[cfg(test)]
-mod tests;

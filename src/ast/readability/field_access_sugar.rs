@@ -76,6 +76,3 @@ fn is_lua_identifier(name: &str, dialect: DecompileDialect) -> bool {
     }
     !dialect.is_keyword(name)
 }
-
-#[cfg(test)]
-mod tests;

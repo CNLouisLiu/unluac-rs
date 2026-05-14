@@ -167,6 +167,3 @@ fn escape_cost(value: &str, quote: char) -> usize {
         })
         .sum()
 }
-
-#[cfg(test)]
-mod tests;

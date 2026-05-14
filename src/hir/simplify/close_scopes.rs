@@ -11,9 +11,6 @@ use crate::hir::common::{HirBlock, HirExpr, HirLValue, HirProto, HirStmt, LocalI
 use super::visit::{HirVisitor, visit_stmts};
 use super::walk::{HirRewritePass, for_each_nested_block_mut, rewrite_proto};
 
-#[cfg(test)]
-mod tests;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ScopeInterval {
     start: usize,

@@ -535,6 +535,3 @@ fn collect_open_sets(sets: &[CompactSet<OpenDefId>]) -> Vec<BTreeSet<OpenDefId>>
         .map(|set| set.iter().copied().collect())
         .collect()
 }
-
-#[cfg(test)]
-mod tests;

@@ -228,6 +228,3 @@ impl HirVisitor for TempUseCollector {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -16,9 +16,6 @@ use crate::hir::common::{HirBlock, HirExpr, HirLValue, HirProto, HirStmt, TempId
 use super::visit::{HirVisitor, visit_proto};
 use super::walk::{HirRewritePass, rewrite_proto};
 
-#[cfg(test)]
-mod tests;
-
 pub(super) fn remove_dead_temp_materializations_in_proto(proto: &mut HirProto) -> bool {
     let live_reads = collect_live_temp_reads(proto);
     let mut pass = DeadTempPass {

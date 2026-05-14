@@ -647,6 +647,3 @@ fn negate_relational_expr(binary: AstBinaryExpr) -> AstExpr {
         })),
     }
 }
-
-#[cfg(test)]
-mod tests;

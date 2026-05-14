@@ -1190,6 +1190,3 @@ impl HirVisitor for TempMentionCollector {
         self.mentioned |= matches!(lvalue, HirLValue::Temp(temp) if *temp == self.temp);
     }
 }
-
-#[cfg(test)]
-mod tests;

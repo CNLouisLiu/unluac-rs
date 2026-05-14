@@ -14,7 +14,7 @@
 cargo unluac -i /path/to/chunk.out -D lua5.1
 
 # 从源码编译后再反编译
-cargo unluac -s tests/lua_cases/lua5.1/01_setfenv.lua -D lua5.1
+cargo unluac -s tests/unit-case/lua51_01.lua -D lua5.1
 
 # 查看某一层的 dump
 cargo unluac -i /path/to/chunk.out -D lua5.4 --dump hir --detail verbose

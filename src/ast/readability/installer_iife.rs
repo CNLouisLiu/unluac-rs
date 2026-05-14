@@ -15,9 +15,6 @@
 //! - 判断 forwarded multiret / final-call-arg 这类语义约束，它们仍属于 AST build；
 //! - 把这个局部函数进一步降成方法声明或 `local function`，那属于 `function_sugar`。
 
-#[cfg(test)]
-mod tests;
-
 use std::collections::BTreeSet;
 
 use crate::ast::common::{

@@ -1114,6 +1114,3 @@ fn binding_from_name_ref(name: &AstNameRef) -> Option<AstBindingRef> {
         AstNameRef::Param(_) | AstNameRef::Upvalue(_) | AstNameRef::Global(_) => None,
     }
 }
-
-#[cfg(test)]
-mod tests;

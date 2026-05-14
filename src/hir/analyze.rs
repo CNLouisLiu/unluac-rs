@@ -10,8 +10,6 @@ mod helpers;
 mod lower;
 mod short_circuit;
 mod structure;
-#[cfg(test)]
-mod tests;
 
 use self::lower::{ChildAnalyses, LowerArtifacts, lower_proto};
 use super::simplify::{PassDumpConfig, simplify_hir};

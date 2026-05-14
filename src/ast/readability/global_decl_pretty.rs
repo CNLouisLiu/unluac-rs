@@ -25,6 +25,3 @@ mod merge;
 mod rewrite;
 
 pub(super) use rewrite::apply;
-
-#[cfg(test)]
-mod tests;

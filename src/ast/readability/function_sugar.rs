@@ -13,9 +13,3 @@ mod method_alias;
 mod rewrite;
 
 pub(super) use rewrite::apply;
-
-#[cfg(test)]
-pub(super) use super::ReadabilityContext;
-
-#[cfg(test)]
-mod tests;

@@ -113,6 +113,3 @@ impl HirVisitor for DefinedTempCollector {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

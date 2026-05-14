@@ -22,5 +22,3 @@ pub(crate) use dataflow::analyze_dataflow;
 pub use dataflow::compute_dataflow_facts;
 pub use debug::{dump_cfg, dump_dataflow, dump_graph_facts};
 pub(crate) use graph::analyze_graph_facts;
-#[cfg(test)]
-pub use graph::compute_graph_facts;

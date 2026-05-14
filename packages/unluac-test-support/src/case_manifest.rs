@@ -1,7 +1,7 @@
 //! 这个模块集中声明仓库里的 Lua case 测试矩阵。
 //!
-//! 真正的事实源是“一个 case 支持哪些 dialect、进入哪些 suite”。
-//! `unit` 和 `regression` 再从这份矩阵里展开成具体的 `(case, dialect)` 测试单元，
+//! 真正的事实源是“一个 case 属于哪类测试、支持哪些 dialect”。
+//! 目录负责区分 `unit` / `regression`，矩阵只负责展开具体 `(case, dialect)` 测试单元，
 //! 这样后续给 common case 显式挂多个 dialect 时，不需要回到“每行一个组合”的散乱写法。
 
 use strum_macros::{Display, IntoStaticStr};
@@ -39,51 +39,16 @@ impl LuaCaseDialect {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) struct LuaCaseSuites {
-    pub(crate) case_health: bool,
-    pub(crate) decompile_pipeline_health: bool,
-}
-
-impl LuaCaseSuites {
-    pub(crate) const fn all() -> Self {
-        Self {
-            case_health: true,
-            decompile_pipeline_health: true,
-        }
-    }
-
-    pub(crate) const fn case_health_only() -> Self {
-        Self {
-            case_health: true,
-            decompile_pipeline_health: false,
-        }
-    }
-}
-
 /// 矩阵里的单个 case 定义。
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) struct LuaCaseMatrixEntry {
     pub(crate) path: &'static str,
     pub(crate) dialects: &'static [LuaCaseDialect],
-    pub(crate) suites: LuaCaseSuites,
 }
 
 impl LuaCaseMatrixEntry {
     const fn new(path: &'static str, dialects: &'static [LuaCaseDialect]) -> Self {
-        Self::new_with_suites(path, dialects, LuaCaseSuites::all())
-    }
-
-    const fn new_with_suites(
-        path: &'static str,
-        dialects: &'static [LuaCaseDialect],
-        suites: LuaCaseSuites,
-    ) -> Self {
-        Self {
-            path,
-            dialects,
-            suites,
-        }
+        Self { path, dialects }
     }
 }
 
@@ -92,7 +57,6 @@ impl LuaCaseMatrixEntry {
 pub struct LuaCaseManifestEntry {
     pub path: &'static str,
     pub dialect: LuaCaseDialect,
-    pub(crate) suites: LuaCaseSuites,
 }
 
 const ALL_DIALECTS: &[LuaCaseDialect] = &[
@@ -129,68 +93,85 @@ const PUC_LUA_GE_55: &[LuaCaseDialect] = &[LuaCaseDialect::Lua55];
 const LUAU_ONLY: &[LuaCaseDialect] = &[LuaCaseDialect::Luau];
 const LUAJIT_ONLY: &[LuaCaseDialect] = &[LuaCaseDialect::Luajit];
 
-pub(crate) const ALL_CASES: &[LuaCaseMatrixEntry] = &[
+const UNIT_CASES: &[LuaCaseMatrixEntry] = &[
     // ── common cases ──
     // 每个文件内部以 `local function test_xxx()` 包裹，print 首参带 file#N 标签以便逐 proto 定位。
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_01_basics.lua", ALL_DIALECTS),
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_02_control_flow.lua", ALL_DIALECTS),
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_03_repeat_until.lua", ALL_DIALECTS),
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_04_generic_for.lua", ALL_DIALECTS),
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_05_boolean_expr.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_01_basics.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_02_control_flow.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_03_repeat_until.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_04_generic_for.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_05_boolean_expr.lua", ALL_DIALECTS),
     // boolean_regression 包含原 tricky/32、33（ALL_NON_LUAU），取最严格的 dialect 集
     LuaCaseMatrixEntry::new(
-        "tests/lua_cases/common_06_boolean_regression.lua",
+        "tests/unit-case/common_06_boolean_regression.lua",
         ALL_NON_LUAU_DIALECTS,
     ),
     LuaCaseMatrixEntry::new(
-        "tests/lua_cases/common_07_return_and_multiret.lua",
+        "tests/unit-case/common_07_return_and_multiret.lua",
         ALL_DIALECTS,
     ),
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_08_closures.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_08_closures.lua", ALL_DIALECTS),
     LuaCaseMatrixEntry::new(
-        "tests/lua_cases/common_09_method_and_self.lua",
+        "tests/unit-case/common_09_method_and_self.lua",
         ALL_DIALECTS,
     ),
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_10_tables.lua", ALL_DIALECTS),
-    LuaCaseMatrixEntry::new("tests/lua_cases/common_11_runtime.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_10_tables.lua", ALL_DIALECTS),
+    LuaCaseMatrixEntry::new("tests/unit-case/common_11_runtime.lua", ALL_DIALECTS),
     // ── dialect-specific cases ──
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua51_01.lua", PUC_LUA_51),
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua52_01_env.lua", PUC_LUA_GE_52),
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua52_02_goto.lua", PUC_LUA_GE_52),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua51_01.lua", PUC_LUA_51),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua52_01_env.lua", PUC_LUA_GE_52),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua52_02_goto.lua", PUC_LUA_GE_52),
     // lua52_03_extraarg_boundary 太大，保留但不注册
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua53_01.lua", PUC_LUA_GE_53),
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua54_01_close.lua", PUC_LUA_GE_54),
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua54_02_const.lua", PUC_LUA_GE_54),
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua55_01_global.lua", PUC_LUA_GE_55),
-    LuaCaseMatrixEntry::new("tests/lua_cases/lua55_02_named_vararg.lua", PUC_LUA_GE_55),
-    LuaCaseMatrixEntry::new("tests/lua_cases/luajit_01.lua", LUAJIT_ONLY),
-    LuaCaseMatrixEntry::new("tests/lua_cases/luau_01.lua", LUAU_ONLY),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua53_01.lua", PUC_LUA_GE_53),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua54_01_close.lua", PUC_LUA_GE_54),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua54_02_const.lua", PUC_LUA_GE_54),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua55_01_global.lua", PUC_LUA_GE_55),
+    LuaCaseMatrixEntry::new("tests/unit-case/lua55_02_named_vararg.lua", PUC_LUA_GE_55),
+    LuaCaseMatrixEntry::new("tests/unit-case/luajit_01.lua", LUAJIT_ONLY),
+    LuaCaseMatrixEntry::new("tests/unit-case/luau_01.lua", LUAU_ONLY),
+];
+
+const REGRESSION_CASES: &[LuaCaseMatrixEntry] = &[
     // ── regression / adversarial cases ──
     // 这些 case 暴露了已知反编译 bug，单独建文件避免 decompile/runtime 失败波及同文件其他 proto。
     LuaCaseMatrixEntry::new(
-        "tests/lua_cases/regress_01_boolean_adversarial.lua",
+        "tests/regress-case/regress_01_boolean_adversarial.lua",
         ALL_DIALECTS,
     ),
     LuaCaseMatrixEntry::new(
-        "tests/lua_cases/regress_02_repeat_inner_ref.lua",
+        "tests/regress-case/regress_02_repeat_inner_ref.lua",
         ALL_DIALECTS,
     ),
     LuaCaseMatrixEntry::new(
-        "tests/lua_cases/regress_06_nested_repeat_continue_flag.lua",
+        "tests/regress-case/regress_03_guarded_return_chain.lua",
+        PUC_LUA_51,
+    ),
+    LuaCaseMatrixEntry::new(
+        "tests/regress-case/regress_04_short_circuit_header_call.lua",
+        PUC_LUA_51,
+    ),
+    LuaCaseMatrixEntry::new(
+        "tests/regress-case/regress_05_if_else_short_circuit_shared_body.lua",
+        PUC_LUA_51,
+    ),
+    LuaCaseMatrixEntry::new(
+        "tests/regress-case/regress_06_nested_repeat_continue_flag.lua",
         PUC_LUA_51,
     ),
 ];
 
-pub(crate) fn case_health_cases() -> impl Iterator<Item = LuaCaseManifestEntry> {
-    manifest_entries().filter(|entry| entry.suites.case_health)
+pub(crate) fn unit_cases() -> impl Iterator<Item = LuaCaseManifestEntry> {
+    manifest_entries(UNIT_CASES)
 }
 
-pub(crate) fn decompile_pipeline_health_cases() -> impl Iterator<Item = LuaCaseManifestEntry> {
-    manifest_entries().filter(|entry| entry.suites.decompile_pipeline_health)
+pub(crate) fn regression_cases() -> impl Iterator<Item = LuaCaseManifestEntry> {
+    manifest_entries(REGRESSION_CASES)
 }
 
-fn manifest_entries() -> impl Iterator<Item = LuaCaseManifestEntry> {
-    ALL_CASES.iter().flat_map(|entry| {
+fn manifest_entries(
+    cases: &'static [LuaCaseMatrixEntry],
+) -> impl Iterator<Item = LuaCaseManifestEntry> {
+    cases.iter().flat_map(|entry| {
         entry
             .dialects
             .iter()
@@ -198,7 +179,6 @@ fn manifest_entries() -> impl Iterator<Item = LuaCaseManifestEntry> {
             .map(move |dialect| LuaCaseManifestEntry {
                 path: entry.path,
                 dialect,
-                suites: entry.suites,
             })
     })
 }

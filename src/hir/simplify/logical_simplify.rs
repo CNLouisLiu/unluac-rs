@@ -22,12 +22,6 @@ use super::expr_facts::{
 use super::walk::{ExprRewritePass, rewrite_proto_exprs};
 use crate::hir::common::{HirExpr, HirLogicalExpr, HirProto};
 
-#[cfg(test)]
-use crate::hir::common::HirBlock;
-
-#[cfg(test)]
-use crate::hir::common::HirStmt;
-
 /// 对单个 proto 递归执行安全的逻辑表达式整理。
 pub(super) fn simplify_logical_exprs_in_proto(proto: &mut HirProto) -> bool {
     rewrite_proto_exprs(proto, &mut LogicalExprPass)
@@ -319,6 +313,3 @@ fn strip_negation(expr: &HirExpr) -> Option<HirExpr> {
         _ => None,
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -82,7 +82,7 @@ Typical usage:
 
 ```bash
 unluac-cli -i /absolute/path/to/chunk.out -D lua5.1
-unluac-cli -s tests/lua_cases/lua5.1/01_setfenv.lua -D lua5.1
+unluac-cli -s tests/unit-case/lua51_01.lua -D lua5.1
 unluac-cli -i /absolute/path/to/chunk.out -D lua5.1 -o /tmp/case.lua
 ```
 

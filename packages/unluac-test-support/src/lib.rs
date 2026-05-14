@@ -17,7 +17,7 @@ use unluac::decompile::{DecompileOptions, DecompileStage, decompile};
 #[allow(dead_code)]
 mod case_manifest;
 pub use case_manifest::{LuaCaseDialect, LuaCaseManifestEntry};
-use case_manifest::{case_health_cases, decompile_pipeline_health_cases};
+use case_manifest::{regression_cases, unit_cases};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct LuaCommandOutput {
@@ -157,7 +157,7 @@ pub enum FailureKind {
     RunCompiledChunkFailed,
     CompiledChunkExecutionFailed,
     SourceChunkOutputMismatch,
-    CaseHealthBaselineFailed,
+    BaselineFailed,
     UnsupportedDecompileDialect,
     DecompileFailed,
     GenerateWithoutSource,
@@ -172,6 +172,7 @@ pub enum FailureKind {
     RecompileGeneratedChunkExecutionFailed,
     RecompileGeneratedOutputMismatch,
     RecompileConvergenceMismatch,
+    ReadabilityAssertionFailed,
 }
 
 impl FailureKind {
@@ -184,7 +185,7 @@ impl FailureKind {
             Self::RunCompiledChunkFailed => "run-compiled-chunk-failed",
             Self::CompiledChunkExecutionFailed => "compiled-chunk-execution-failed",
             Self::SourceChunkOutputMismatch => "source-chunk-output-mismatch",
-            Self::CaseHealthBaselineFailed => "case-health-baseline-failed",
+            Self::BaselineFailed => "baseline-failed",
             Self::UnsupportedDecompileDialect => "unsupported-decompile-dialect",
             Self::DecompileFailed => "decompile-failed",
             Self::GenerateWithoutSource => "generate-without-source",
@@ -203,6 +204,7 @@ impl FailureKind {
             }
             Self::RecompileGeneratedOutputMismatch => "recompile-generated-output-mismatch",
             Self::RecompileConvergenceMismatch => "recompile-convergence-mismatch",
+            Self::ReadabilityAssertionFailed => "readability-assertion-failed",
         }
     }
 }
@@ -275,24 +277,24 @@ fn failure_separator() -> &'static str {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum UnitSuite {
-    CaseHealth,
-    DecompilePipelineHealth,
+    Unit,
+    Regression,
 }
 
 impl UnitSuite {
     pub fn label(self) -> &'static str {
         match self {
-            Self::CaseHealth => "case-health",
-            Self::DecompilePipelineHealth => "decompile-pipeline-health",
+            Self::Unit => "unit",
+            Self::Regression => "regression",
         }
     }
 
     pub fn parse(value: &str) -> Result<Self, String> {
         match value {
-            "case-health" => Ok(Self::CaseHealth),
-            "decompile-pipeline-health" => Ok(Self::DecompilePipelineHealth),
+            "unit" => Ok(Self::Unit),
+            "regression" => Ok(Self::Regression),
             _ => Err(format!(
-                "unknown unit suite: {value} (expected `case-health` or `decompile-pipeline-health`)"
+                "unknown test suite: {value} (expected `unit` or `regression`)"
             )),
         }
     }
@@ -305,13 +307,13 @@ pub struct UnitCaseSpec {
 }
 
 pub fn unit_case_specs() -> Vec<UnitCaseSpec> {
-    case_health_cases()
+    unit_cases()
         .map(|entry| UnitCaseSpec {
-            suite: UnitSuite::CaseHealth,
+            suite: UnitSuite::Unit,
             entry,
         })
-        .chain(decompile_pipeline_health_cases().map(|entry| UnitCaseSpec {
-            suite: UnitSuite::DecompilePipelineHealth,
+        .chain(regression_cases().map(|entry| UnitCaseSpec {
+            suite: UnitSuite::Regression,
             entry,
         }))
         .collect()
@@ -330,15 +332,223 @@ pub fn find_unit_case_spec(
 }
 
 pub fn run_unit_case(spec: UnitCaseSpec) -> Result<TestSuccess, TestFailure> {
-    match spec.suite {
-        UnitSuite::CaseHealth => run_case_health(&spec.entry),
-        UnitSuite::DecompilePipelineHealth => run_decompile_pipeline_health(&spec.entry),
-    }
+    run_pipeline_case(spec.suite, &spec.entry)
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct CaseHealthBaseline {
+pub(crate) struct CaseBaseline {
     pub(crate) source_output: LuaCommandOutput,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+enum ReadabilityAssertion {
+    Contains {
+        line: usize,
+        needle: String,
+    },
+    NotContains {
+        line: usize,
+        needle: String,
+    },
+    Order {
+        line: usize,
+        before: String,
+        after: String,
+    },
+}
+
+fn read_readability_assertions(
+    source_relative: &str,
+) -> Result<Vec<ReadabilityAssertion>, TestFailure> {
+    let source = repo_root().join(source_relative);
+    let text = fs::read_to_string(&source).map_err(|error| {
+        TestFailure::new(
+            FailureKind::ReadabilityAssertionFailed,
+            "read readability assertions failed",
+            format!(
+                "read readability assertions from {} failed: {error}",
+                repo_relative_display(&source)
+            ),
+        )
+    })?;
+
+    let mut assertions = Vec::new();
+    for (line_index, line) in text.lines().enumerate() {
+        let line_no = line_index + 1;
+        let Some(raw) = line
+            .trim_start()
+            .strip_prefix("--")
+            .map(str::trim_start)
+            .and_then(|line| line.strip_prefix("unluac:"))
+            .map(str::trim)
+        else {
+            continue;
+        };
+
+        let (directive, args) = split_directive(raw).ok_or_else(|| {
+            readability_parse_failure(source_relative, line_no, "missing readability directive")
+        })?;
+        let args = parse_long_bracket_args(args)
+            .map_err(|error| readability_parse_failure(source_relative, line_no, error))?;
+
+        match directive {
+            "expect-contains" => {
+                let [needle] = args.as_slice() else {
+                    return Err(readability_parse_failure(
+                        source_relative,
+                        line_no,
+                        "expect-contains requires exactly one [[...]] argument",
+                    ));
+                };
+                assertions.push(ReadabilityAssertion::Contains {
+                    line: line_no,
+                    needle: needle.clone(),
+                });
+            }
+            "expect-not-contains" => {
+                let [needle] = args.as_slice() else {
+                    return Err(readability_parse_failure(
+                        source_relative,
+                        line_no,
+                        "expect-not-contains requires exactly one [[...]] argument",
+                    ));
+                };
+                assertions.push(ReadabilityAssertion::NotContains {
+                    line: line_no,
+                    needle: needle.clone(),
+                });
+            }
+            "expect-order" => {
+                let [before, after] = args.as_slice() else {
+                    return Err(readability_parse_failure(
+                        source_relative,
+                        line_no,
+                        "expect-order requires exactly two [[...]] arguments",
+                    ));
+                };
+                assertions.push(ReadabilityAssertion::Order {
+                    line: line_no,
+                    before: before.clone(),
+                    after: after.clone(),
+                });
+            }
+            other => {
+                return Err(readability_parse_failure(
+                    source_relative,
+                    line_no,
+                    format!("unknown readability directive: {other}"),
+                ));
+            }
+        }
+    }
+
+    Ok(assertions)
+}
+
+fn split_directive(raw: &str) -> Option<(&str, &str)> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    match raw.find(char::is_whitespace) {
+        Some(index) => Some((&raw[..index], raw[index..].trim_start())),
+        None => Some((raw, "")),
+    }
+}
+
+fn parse_long_bracket_args(mut raw: &str) -> Result<Vec<String>, &'static str> {
+    let mut args = Vec::new();
+    loop {
+        raw = raw.trim_start();
+        if raw.is_empty() {
+            return Ok(args);
+        }
+        let Some(rest) = raw.strip_prefix("[[") else {
+            return Err("arguments must use Lua long-bracket form [[...]]");
+        };
+        let Some(end) = rest.find("]]") else {
+            return Err("missing closing ]] in readability assertion argument");
+        };
+        args.push(rest[..end].to_owned());
+        raw = &rest[end + 2..];
+    }
+}
+
+fn readability_parse_failure(
+    source_relative: &str,
+    line: usize,
+    reason: impl Into<String>,
+) -> TestFailure {
+    let reason = reason.into();
+    TestFailure::new(
+        FailureKind::ReadabilityAssertionFailed,
+        format!("readability assertion parse failed at {source_relative}:{line}: {reason}"),
+        format!("readability assertion parse failed at {source_relative}:{line}: {reason}"),
+    )
+}
+
+fn assert_readability(
+    stage_label: &str,
+    generated_source: &str,
+    assertions: &[ReadabilityAssertion],
+) -> Result<(), TestFailure> {
+    for assertion in assertions {
+        match assertion {
+            ReadabilityAssertion::Contains { line, needle } => {
+                if !generated_source.contains(needle) {
+                    return Err(readability_assertion_failure(
+                        stage_label,
+                        *line,
+                        format!("expected generated source to contain {needle:?}"),
+                        generated_source,
+                    ));
+                }
+            }
+            ReadabilityAssertion::NotContains { line, needle } => {
+                if generated_source.contains(needle) {
+                    return Err(readability_assertion_failure(
+                        stage_label,
+                        *line,
+                        format!("expected generated source not to contain {needle:?}"),
+                        generated_source,
+                    ));
+                }
+            }
+            ReadabilityAssertion::Order {
+                line,
+                before,
+                after,
+            } => {
+                let before_pos = generated_source.find(before);
+                let after_pos = generated_source.find(after);
+                if !matches!((before_pos, after_pos), (Some(left), Some(right)) if left < right) {
+                    return Err(readability_assertion_failure(
+                        stage_label,
+                        *line,
+                        format!("expected generated source to contain {before:?} before {after:?}"),
+                        generated_source,
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn readability_assertion_failure(
+    stage_label: &str,
+    line: usize,
+    reason: String,
+    generated_source: &str,
+) -> TestFailure {
+    let summary =
+        format!("[{stage_label}] readability assertion failed at source line {line}: {reason}");
+    TestFailure::new(
+        FailureKind::ReadabilityAssertionFailed,
+        summary.clone(),
+        format!("{summary}\ngenerated source:\n{generated_source}"),
+    )
 }
 
 /// 使用 vendored 的 `lua` 直接执行某个仓库内 Lua case。
@@ -399,11 +609,11 @@ pub(crate) fn write_generated_case_source(
     Ok(output)
 }
 
-/// 执行 case-health，并返回后续 pipeline health 可以直接复用的基线输出。
-pub(crate) fn build_case_health_baseline(
+/// 执行源码与官方编译产物，得到后续反编译验证可以复用的基线输出。
+pub(crate) fn build_case_baseline(
     entry: &case_manifest::LuaCaseManifestEntry,
     suite_label: &str,
-) -> Result<CaseHealthBaseline, TestFailure> {
+) -> Result<CaseBaseline, TestFailure> {
     let dialect_label = <&'static str>::from(entry.dialect);
     let toolchain = lua_toolchain(dialect_label).map_err(|error| {
         TestFailure::new(
@@ -465,7 +675,7 @@ pub(crate) fn build_case_health_baseline(
     }
 
     if !toolchain.can_run_compiled_chunks {
-        return Ok(CaseHealthBaseline { source_output });
+        return Ok(CaseBaseline { source_output });
     }
 
     let chunk_output = run_lua_file(dialect_label, &compiled_path).map_err(|error| {
@@ -505,20 +715,15 @@ pub(crate) fn build_case_health_baseline(
         ));
     }
 
-    Ok(CaseHealthBaseline { source_output })
+    Ok(CaseBaseline { source_output })
 }
 
-pub(crate) fn run_case_health(entry: &LuaCaseManifestEntry) -> Result<TestSuccess, TestFailure> {
-    let baseline = build_case_health_baseline(entry, UnitSuite::CaseHealth.label())?;
-    let proto_count = count_output_tags(&baseline.source_output.stdout);
-    Ok(TestSuccess { proto_count })
-}
-
-pub(crate) fn run_decompile_pipeline_health(
+pub(crate) fn run_pipeline_case(
+    suite: UnitSuite,
     entry: &LuaCaseManifestEntry,
 ) -> Result<TestSuccess, TestFailure> {
     let dialect_label = <&'static str>::from(entry.dialect);
-    let suite_label = UnitSuite::DecompilePipelineHealth.label();
+    let suite_label = suite.label();
     let toolchain = lua_toolchain(dialect_label).map_err(|error| {
         TestFailure::new(
             FailureKind::RunGeneratedChunkFailed,
@@ -526,11 +731,12 @@ pub(crate) fn run_decompile_pipeline_health(
             format!("unknown test dialect {dialect_label}: {error}"),
         )
     })?;
-    let baseline = build_case_health_baseline(entry, suite_label).map_err(|failure| {
+    let assertions = read_readability_assertions(entry.path)?;
+    let baseline = build_case_baseline(entry, suite_label).map_err(|failure| {
         TestFailure::new(
-            FailureKind::CaseHealthBaselineFailed,
-            format!("case-health baseline failed first: {}", failure.summary()),
-            format!("case-health baseline failed first\n{}", failure.detail()),
+            FailureKind::BaselineFailed,
+            format!("baseline failed first: {}", failure.summary()),
+            format!("baseline failed first\n{}", failure.detail()),
         )
     })?;
     let dialect = entry.dialect.decompile_dialect().ok_or_else(|| {
@@ -566,6 +772,7 @@ pub(crate) fn run_decompile_pipeline_health(
             format!("generate stage finished without source for {}", entry.path),
         )
     })?;
+    assert_readability("generated", &generated.source, &assertions)?;
     let generated_source_path =
         write_generated_case_source(dialect_label, suite_label, entry.path, &generated.source)
             .map_err(|error| {
@@ -766,6 +973,7 @@ pub(crate) fn run_decompile_pipeline_health(
                 ),
             )
         })?;
+        assert_readability(&round_label, &recompile_generated.source, &assertions)?;
 
         // 写出、编译、执行再次生成的源码
         let regen_source_path = write_generated_case_source(

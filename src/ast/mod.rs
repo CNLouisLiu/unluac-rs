@@ -28,5 +28,3 @@ pub use debug::{dump_ast, dump_readability};
 pub use error::AstLowerError;
 pub(crate) use features::collect_ast_features;
 pub(crate) use readability::make_readable;
-#[cfg(test)]
-pub(crate) use readability::make_readable_module;

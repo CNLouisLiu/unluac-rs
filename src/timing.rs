@@ -104,11 +104,6 @@ mod enabled {
             }
         }
 
-        #[cfg_attr(not(test), allow(dead_code))]
-        pub(crate) fn disabled() -> Self {
-            Self::new(false)
-        }
-
         pub(crate) fn record<T, F>(&self, label: impl Into<String>, f: F) -> T
         where
             F: FnOnce() -> T,
@@ -321,11 +316,6 @@ mod enabled {
 
     impl TimingCollector {
         pub(crate) fn new(_enabled: bool) -> Self {
-            Self
-        }
-
-        #[cfg_attr(not(test), allow(dead_code))]
-        pub(crate) fn disabled() -> Self {
             Self
         }
 

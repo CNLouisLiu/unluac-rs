@@ -88,6 +88,3 @@ pub fn assign_names_with_evidence(
         functions,
     })
 }
-
-#[cfg(test)]
-mod tests;

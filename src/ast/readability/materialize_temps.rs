@@ -354,6 +354,3 @@ fn rewrite_function_capture_bindings(
         })
         .collect();
 }
-
-#[cfg(test)]
-mod tests;

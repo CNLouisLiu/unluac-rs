@@ -112,14 +112,6 @@ pub(crate) fn analyze_graph_facts(
     Ok(())
 }
 
-/// 对整个 CFG 树递归计算图事实，供局部测试按显式事实调用。
-#[cfg(test)]
-pub fn compute_graph_facts(cfg: &CfgGraph) -> GraphFacts {
-    let analysis = GraphAnalysis::analyze(&cfg.cfg);
-    let children = cfg.children.iter().map(compute_graph_facts).collect();
-    analysis.into_graph_facts(children)
-}
-
 fn compute_rpo(cfg: &Cfg, reachable: &DenseBlockSet) -> Vec<BlockRef> {
     if !reachable.contains(cfg.entry_block) {
         return Vec::new();

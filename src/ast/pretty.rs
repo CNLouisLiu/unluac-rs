@@ -129,6 +129,3 @@ fn expr_display_complexity(expr: &AstExpr) -> usize {
         AstExpr::Error(_) => 1,
     }
 }
-
-#[cfg(test)]
-mod tests;

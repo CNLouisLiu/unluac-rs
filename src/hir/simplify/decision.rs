@@ -25,9 +25,6 @@ use crate::hir::common::{
     HirExpr, HirProto, HirUnaryOpKind,
 };
 
-#[cfg(test)]
-use crate::hir::common::{HirBlock, HirStmt, HirTableField, HirTableKey};
-
 /// 对单个 proto 递归执行 decision DAG 归一化。
 pub(super) fn simplify_decision_exprs_in_proto(proto: &mut HirProto) -> bool {
     rewrite_proto_exprs(proto, &mut DecisionExprPass)
@@ -877,6 +874,3 @@ pub(in crate::hir) fn decision_has_cycles(decision: &HirDecisionExpr) -> bool {
 
     false
 }
-
-#[cfg(test)]
-mod tests;

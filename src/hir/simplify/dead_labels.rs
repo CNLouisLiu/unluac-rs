@@ -22,9 +22,6 @@ use crate::hir::common::{HirLabelId, HirProto, HirStmt};
 use super::visit::{HirVisitor, visit_proto};
 use super::walk::{HirRewritePass, rewrite_proto};
 
-#[cfg(test)]
-mod tests;
-
 pub(super) fn remove_unused_labels_in_proto(proto: &mut HirProto) -> bool {
     let referenced = collect_referenced_labels(proto);
     let mut pass = DeadLabelPass {

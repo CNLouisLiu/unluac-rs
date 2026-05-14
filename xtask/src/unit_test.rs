@@ -238,14 +238,14 @@ impl Reporter {
         })
     }
 
-    fn announce_start(&self, total: usize, options: &Options, jobs: usize) {
+    fn announce_start(&self, total: usize, options: &Options, jobs: usize, suite_counts: &str) {
         let filters = if options.case_filters.is_empty() {
             "none".to_owned()
         } else {
             options.case_filters.join(", ")
         };
         eprintln!(
-            "running {total} unit case(s) with output={} timeout={}s progress={} color={} jobs={} recompile-rounds={} case-filter={}",
+            "running {total} test entry(s) ({suite_counts}) with output={} timeout={}s progress={} color={} jobs={} recompile-rounds={} case-filter={}",
             options.output.label(),
             options.timeout_seconds,
             match options.progress {
@@ -340,7 +340,7 @@ impl Reporter {
         let passed = total - failed;
         let passed_protos = total_protos.saturating_sub(failed_protos);
         eprintln!(
-            "unit runner finished: files: total={}, passed={}, failed={}, timed_out={}",
+            "unit runner finished: entries: total={}, passed={}, failed={}, timed_out={}",
             total,
             self.palette.green(passed.to_string()),
             if failed == 0 {
@@ -509,10 +509,11 @@ where
     }
 
     let timeout = Duration::from_secs(options.timeout_seconds);
+    let suite_counts = describe_suite_counts(&cases);
     let total = cases.len();
     let jobs = options.jobs.min(total).max(1);
     let reporter = Reporter::new(total, &options)?;
-    reporter.announce_start(total, &options, jobs);
+    reporter.announce_start(total, &options, jobs, &suite_counts);
 
     let (event_rx, handles) = spawn_workers(
         root,
@@ -646,7 +647,7 @@ pub(crate) fn print_help() {
     println!("usage:");
     println!("  cargo unit-test");
     println!("  cargo unit-test <help|--help|-h>");
-    println!("                  [--suite <all|case-health|decompile-pipeline-health>]");
+    println!("                  [--suite <all|unit|regression>]");
     println!("                  [--dialect <all|lua5.1|lua5.2|lua5.3|lua5.4|lua5.5>]");
     println!("                  [--case-filter <substring>]...");
     println!("                  [--output <simple|verbose>] [--timeout-seconds <n>]");
@@ -807,6 +808,18 @@ fn sorted_failure_counts(failure_counts: &BTreeMap<String, usize>) -> Vec<(&str,
         .collect::<Vec<_>>();
     entries.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(right.0)));
     entries
+}
+
+fn describe_suite_counts(cases: &[UnitCaseDescriptor]) -> String {
+    let mut counts = BTreeMap::new();
+    for case in cases {
+        *counts.entry(case.suite.as_str()).or_insert(0usize) += 1;
+    }
+    counts
+        .into_iter()
+        .map(|(suite, count)| format!("{suite}={count}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn workspace_root() -> Result<PathBuf> {
@@ -1208,11 +1221,11 @@ mod tests {
     fn parse_args_should_accept_options() {
         let options = parse_args([
             "--suite",
-            "case-health",
+            "unit",
             "--dialect",
             "lua5.4",
             "--case-filter",
-            "control_flow",
+            "common_04",
             "--case-filter",
             "04_generic_for",
             "--output",
@@ -1234,9 +1247,9 @@ mod tests {
         assert_eq!(
             options,
             Options {
-                suite: "case-health".to_owned(),
+                suite: "unit".to_owned(),
                 dialect: "lua5.4".to_owned(),
-                case_filters: vec!["control_flow".to_owned(), "04_generic_for".to_owned()],
+                case_filters: vec!["common_04".to_owned(), "04_generic_for".to_owned()],
                 output: FailureOutputMode::Verbose,
                 timeout_seconds: 12,
                 progress: ProgressMode::Off,
@@ -1302,7 +1315,7 @@ mod tests {
     #[test]
     fn normalize_runner_failure_should_strip_simple_case_prefix() {
         let case = super::UnitCaseDescriptor {
-            suite: "case-health".to_owned(),
+            suite: "unit".to_owned(),
             dialect: "lua5.4".to_owned(),
             path: "tests/example.lua".to_owned(),
         };
@@ -1358,13 +1371,13 @@ mod tests {
     #[test]
     fn matches_case_filters_should_accept_any_substring_match() {
         let case = super::UnitCaseDescriptor {
-            suite: "case-health".to_owned(),
+            suite: "unit".to_owned(),
             dialect: "lua5.4".to_owned(),
-            path: "tests/lua_cases/common/control_flow/04_generic_for.lua".to_owned(),
+            path: "tests/unit-case/common_04_generic_for.lua".to_owned(),
         };
 
         assert!(matches_case_filters(&case, &[]));
-        assert!(matches_case_filters(&case, &["control_flow".to_owned()]));
+        assert!(matches_case_filters(&case, &["common_04".to_owned()]));
         assert!(matches_case_filters(
             &case,
             &["not-here".to_owned(), "04_generic_for".to_owned()]

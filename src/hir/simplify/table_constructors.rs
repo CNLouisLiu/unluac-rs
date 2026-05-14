@@ -207,6 +207,3 @@ fn install_constructor_owner(
     }
     install_constructor_seed(stmt, constructor);
 }
-
-#[cfg(test)]
-mod tests;

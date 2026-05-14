@@ -730,6 +730,3 @@ fn count_binding_uses_in_remaining_run(
         .map(|(offset, _)| use_index.count_uses_in_stmt_index(start_index + offset, binding))
         .sum()
 }
-
-#[cfg(test)]
-mod tests;

@@ -397,6 +397,3 @@ fn function_expr_captures_binding(
 ) -> bool {
     function.captured_bindings.contains(&binding) || block_captures_binding(&function.body, binding)
 }
-
-#[cfg(test)]
-mod tests;

@@ -29,12 +29,6 @@ use crate::hir::common::{
 };
 use crate::hir::promotion::ProtoPromotionFacts;
 
-/// 对单个 proto 执行保守的 temp -> local 提升。
-#[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn promote_temps_to_locals_in_proto(proto: &mut HirProto) -> bool {
-    promote_temps_to_locals_in_proto_with_facts(proto, &ProtoPromotionFacts::default())
-}
-
 /// 对单个 proto 执行带 promotion facts 的 temp -> local 提升。
 pub(super) fn promote_temps_to_locals_in_proto_with_facts(
     proto: &mut HirProto,
@@ -1073,6 +1067,3 @@ fn rewrite_closure_capture_temps(expr: &mut HirExpr, mapping: &BTreeMap<TempId, 
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -276,6 +276,3 @@ fn replace_exact_name_expr(
         false
     }
 }
-
-#[cfg(test)]
-mod tests;

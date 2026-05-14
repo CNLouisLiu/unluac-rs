@@ -133,6 +133,3 @@ pub fn format_display_set(items: impl IntoIterator<Item = impl fmt::Display>) ->
         format!("[{}]", formatted.join(", "))
     }
 }
-
-#[cfg(test)]
-mod tests;

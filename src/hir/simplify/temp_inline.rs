@@ -29,12 +29,6 @@ use self::usage::{
 const NESTED_INLINE_MAX_COMPLEXITY: usize = 5;
 const CONTROL_HEAD_INLINE_MAX_COMPLEXITY: usize = 5;
 
-/// 对单个 proto 递归执行局部 temp 折叠。
-#[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn inline_temps_in_proto(proto: &mut HirProto, readability: ReadabilityOptions) -> bool {
-    inline_temps_in_proto_with_facts(proto, readability, &ProtoPromotionFacts::default())
-}
-
 pub(super) fn inline_temps_in_proto_with_facts(
     proto: &mut HirProto,
     readability: ReadabilityOptions,
@@ -261,6 +255,3 @@ fn temp_rebinds_captured_slot(
         .home_slot(temp)
         .is_some_and(|slot| captured_slots.contains(&slot))
 }
-
-#[cfg(test)]
-mod tests;

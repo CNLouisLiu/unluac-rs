@@ -9,6 +9,3 @@
 
 mod shape;
 mod syntax;
-
-#[cfg(test)]
-mod tests;
