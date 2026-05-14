@@ -430,7 +430,6 @@ pub(crate) fn emit_pending_instr(
     emitted.push(EmittedInstr { raw_indices, instr });
     low_index
 }
-
 pub(crate) fn ensure_targetable_pc(
     raw_pc: u32,
     target_pc: u32,

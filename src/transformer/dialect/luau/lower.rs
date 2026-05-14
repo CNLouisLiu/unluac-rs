@@ -105,6 +105,14 @@ impl<'a> ProtoLowerer<'a> {
                 | LuauOpcode::FastCall2
                 | LuauOpcode::FastCall2K
                 | LuauOpcode::FastCall3 => {
+                    // 这些 opcode 在 Luau 里都是“VM 内部 hint / 无副作用占位”，对我们要恢复的源
+                    // 级语义没有贡献，所以不发射任何 low-IR。但它们仍然占据真实 raw pc，并且
+                    // 完全可能成为其它指令（典型如 LoadB.C != 0 的“跳过下一条”、JumpIfNot 跳到
+                    // FastCall 紧接着的 Call 一段）的跳转目标。如果不在这里登记 raw_target_low，
+                    // 后续 resolve 阶段就会把目标判为“raw 指令没有起始 low-IR”，整段反编译
+                    // 直接挂掉。这里调用 mark_raw_target，让目标被解释为“跳到我之后第一条
+                    // 真正发射出来的 low-IR”，与“FastCall 是 no-op”的语义一致。
+                    self.lowering.mark_raw_target(raw_index);
                     raw_index += 1;
                 }
                 LuauOpcode::Move => {
