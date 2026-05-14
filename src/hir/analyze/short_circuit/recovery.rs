@@ -212,25 +212,18 @@ fn build_branch_short_circuit_plan_from_candidate(
         return None;
     }
 
-    let decision = if decision_references_forbidden_candidate_temps(
-        lowering,
-        short,
-        &decision,
-        &allowed_blocks,
-    ) {
+    let has_forbidden = decision_references_forbidden_candidate_temps(lowering, short, &decision, &allowed_blocks);
+    let decision = if has_forbidden {
         match short.exit {
-            // branch short-circuit 的最终条件只会在当前结构位点求值一次。
-            // 当后续 consumed header 的 subject 只是被保守地留成 temp ref 时，
-            // 这里允许沿既有 decision builder 退回到 single-eval lowering，
-            // 把那一跳恢复成源码级操作数本体，而不是直接整段退化成布尔壳。
-            // 入口 header 的 prefix 会在 `lower_branch` 中显式物化；这里继续
-            // 引用它的 temp，避免把同一次调用同时保留成前缀语句和条件表达式。
-            ShortCircuitExit::BranchExit { .. } => build_branch_decision_expr_mixed_eval(
-                lowering,
-                short,
-                short.entry,
-                &allowed_blocks,
-            )?,
+            ShortCircuitExit::BranchExit { .. } => {
+                let res = build_branch_decision_expr_mixed_eval(
+                    lowering,
+                    short,
+                    short.entry,
+                    &allowed_blocks,
+                );
+                res?
+            }
             ShortCircuitExit::ValueMerge(_) => {
                 let (_, _, truthy_leaves, falsy_leaves) =
                     branch_exit_blocks_from_value_merge_candidate(short)?;

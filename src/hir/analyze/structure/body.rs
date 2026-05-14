@@ -816,6 +816,23 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             }));
         }
 
+        // 当 SC 的 falsy 出口本身是 `return`/`tail-call` 终结块，并且 then 入口能
+        // 经由内部控制流到达同一个终结块时（典型形状：then 内部还有 `if X then return end`
+        // 的早返回守卫，与 SC 失败路径共用函数尾部的隐式 return），按 IfElse 处理会
+        // 让 then 在 lower 时先 visit 掉这个共享终结块，导致随后 lower else 失败、整段
+        // proto 退化成 goto-label fallback。这里把这种形状显式降级成 IfThen，merge 留空：
+        // 终结块由 then 内部的早返回路径自然消费，SC falsy 边落到外层 region 的自然末尾，
+        // 语义上正好对齐 `if cond then ... <early return inside> ... end` 加函数末尾隐式 return。
+        if self.block_is_terminal_exit(falsy) && self.lowering.cfg.can_reach(truthy, falsy) {
+            return Some(Some(StructuredBranchPlan {
+                cond,
+                then_entry: truthy,
+                else_entry: None,
+                merge: None,
+                consumed_headers,
+            }));
+        }
+
         let merge = self
             .lowering
             .graph_facts
