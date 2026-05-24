@@ -5,9 +5,11 @@
 //! 在后续语句里继续被读/写。对这类值，继续保留 `t12 / t13 / ...` 只会让 HIR 充满
 //! 版本噪音，把它们折回同一个 `LocalId` 更接近源码，也能为后续 AST/Naming 铺路。
 //!
-//! 另外，如果某个 local 已经被 closure capture 观察到，后续来自同一寄存器槽位的
-//! 新 def 不该再长成新的 local，而应继续写回原绑定。否则 closure 会继续指向旧 local，
-//! 后半段写回却被拆到新绑定里，直接改掉源码语义。
+//! 另外，如果某个 local 已经被 closure capture 观察到，后续来自同一词法槽位的
+//! 新 def 不该再长成新的 local，而应继续写回原绑定。这里的“同一词法槽位”会把
+//! `close from rX` 纳入身份；close 后复用同一个寄存器号不能再写回旧 upvalue。
+//! 否则 closure 会继续指向旧 local，后半段写回却被拆到新绑定里，或把 close 后的
+//! 普通临时值误写进已关闭 upvalue，直接改掉源码语义。
 //!
 //! 提升完成后，同一个 block 里还会执行两步后处理：
 //! 1. branch-value 折叠：`local X; if cond then X=a else X=b end` → `local X = expr`
@@ -27,7 +29,7 @@ use crate::hir::common::{
     HirAssign, HirBlock, HirCallExpr, HirExpr, HirLValue, HirLocalDecl, HirProto, HirStmt,
     HirTableConstructor, HirTableField, HirTableKey, LocalId, TempId,
 };
-use crate::hir::promotion::ProtoPromotionFacts;
+use crate::hir::promotion::{HomeSlotKey, ProtoPromotionFacts};
 
 /// 对单个 proto 执行带 promotion facts 的 temp -> local 提升。
 pub(super) fn promote_temps_to_locals_in_proto_with_facts(
@@ -60,7 +62,7 @@ pub(super) fn promote_temps_to_locals_in_proto_with_facts(
 struct PromotionPlan {
     decl_index: usize,
     local: LocalId,
-    home_slot: Option<usize>,
+    home_slot: Option<HomeSlotKey>,
     temps: BTreeSet<TempId>,
     removable_aliases: BTreeSet<usize>,
     init: PromotionInit,
@@ -112,7 +114,7 @@ impl PlanAllocator<'_> {
     fn allocate_local(
         &mut self,
         decl_index: usize,
-        home_slot: Option<usize>,
+        home_slot: Option<HomeSlotKey>,
         temps: BTreeSet<TempId>,
         removable_aliases: BTreeSet<usize>,
         init: PromotionInit,
@@ -140,7 +142,7 @@ impl PlanAllocator<'_> {
         &mut self,
         decl_index: usize,
         local: LocalId,
-        home_slot: Option<usize>,
+        home_slot: Option<HomeSlotKey>,
         temps: BTreeSet<TempId>,
         removable_aliases: BTreeSet<usize>,
         init: PromotionInit,
@@ -164,7 +166,7 @@ fn promote_block(
     ctx: &mut PromotionCtx<'_>,
     block: &mut HirBlock,
     inherited: &BTreeMap<TempId, LocalId>,
-    inherited_sticky_slots: &BTreeMap<usize, LocalId>,
+    inherited_sticky_slots: &BTreeMap<HomeSlotKey, LocalId>,
     outer_used_temps: &BTreeSet<TempId>,
 ) -> PromotionResult {
     // 预计算后缀 temp 引用集：suffix_temps[i] 包含 stmts[i..] 中出现的所有 temp。
@@ -344,7 +346,7 @@ fn collect_plans(
     ctx: &mut PromotionCtx<'_>,
     block: &HirBlock,
     inherited: &BTreeMap<TempId, LocalId>,
-    inherited_sticky_slots: &BTreeMap<usize, LocalId>,
+    inherited_sticky_slots: &BTreeMap<HomeSlotKey, LocalId>,
     outer_used_temps: &BTreeSet<TempId>,
 ) -> Vec<PromotionPlan> {
     if block.stmts.iter().any(|stmt| {
@@ -370,25 +372,28 @@ fn collect_plans(
             continue;
         }
 
+        let mut sticky_slots_for_stmt = sticky_slots.clone();
+        activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots_for_stmt);
+
         let Some(root_temp) = simple_temp_assign_target(stmt) else {
-            activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+            sticky_slots = sticky_slots_for_stmt;
             continue;
         };
         if reserved_temps.contains(&root_temp) {
-            activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+            sticky_slots = sticky_slots_for_stmt;
             continue;
         }
         // 外层作用域仍在引用的 temp 不能在子作用域提升为块级 local，
         // 否则外层读到的是一个永远未被赋值的孤儿 temp。
         if outer_used_temps.contains(&root_temp) {
-            activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+            sticky_slots = sticky_slots_for_stmt;
             continue;
         }
         // 目标 temp 自己又出现在 RHS 里时，这条赋值表达的是“沿用同一状态槽位继续更新”，
         // 不能在 locals pass 里把它误提升成新的 block-local。否则像 loop carried state
         // 或分支内的状态写回，会被拆成 `local next = step(state)`，原状态槽位反而失去写回。
         if stmt_self_updates_temp(stmt, root_temp) {
-            activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+            sticky_slots = sticky_slots_for_stmt;
             continue;
         }
 
@@ -419,10 +424,10 @@ fn collect_plans(
 
         let sticky_local = facts
             .home_slot(root_temp)
-            .and_then(|slot| sticky_slots.get(&slot).copied());
+            .and_then(|slot| sticky_slots_for_stmt.get(&slot).copied());
 
         if sticky_local.is_none() && !has_future_touch {
-            activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+            sticky_slots = sticky_slots_for_stmt;
             continue;
         }
         if sticky_local.is_none() {
@@ -437,7 +442,7 @@ fn collect_plans(
                     &group,
                 )
             {
-                activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+                sticky_slots = sticky_slots_for_stmt;
                 continue;
             }
             if touching_stmt_indices
@@ -445,7 +450,7 @@ fn collect_plans(
                 .copied()
                 .any(|stmt_index| stmt_contains_nested_nonlocal_control(&block.stmts[stmt_index]))
             {
-                activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+                sticky_slots = sticky_slots_for_stmt;
                 continue;
             }
         }
@@ -484,7 +489,7 @@ fn collect_plans(
             }
         }
 
-        activate_captured_slots_in_stmt(stmt, facts, &slot_candidates, &mut sticky_slots);
+        sticky_slots = sticky_slots_for_stmt;
     }
 
     let mut sticky_slots = inherited_sticky_slots.clone();
@@ -543,8 +548,8 @@ fn collect_plans(
 fn activate_captured_slots_in_stmt(
     stmt: &HirStmt,
     facts: &ProtoPromotionFacts,
-    slot_candidates: &BTreeMap<usize, LocalId>,
-    sticky_slots: &mut BTreeMap<usize, LocalId>,
+    slot_candidates: &BTreeMap<HomeSlotKey, LocalId>,
+    sticky_slots: &mut BTreeMap<HomeSlotKey, LocalId>,
 ) {
     let mut captured_slots = BTreeSet::new();
     facts.collect_captured_home_slots_in_stmt(stmt, &mut captured_slots);
@@ -766,7 +771,7 @@ fn rewrite_stmt(
     ctx: &mut PromotionCtx<'_>,
     stmt: &mut HirStmt,
     mapping: &BTreeMap<TempId, LocalId>,
-    sticky_slots: &BTreeMap<usize, LocalId>,
+    sticky_slots: &BTreeMap<HomeSlotKey, LocalId>,
     outer_used_temps: &BTreeSet<TempId>,
 ) -> bool {
     match stmt {

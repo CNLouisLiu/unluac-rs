@@ -149,7 +149,7 @@ pub(super) fn lower_proto(
         body: build_proto_body(&lowering),
         children: child_refs,
     };
-    artifacts.promotion_facts[id.index()] = ProtoPromotionFacts::from_dataflow(dataflow);
+    artifacts.promotion_facts[id.index()] = ProtoPromotionFacts::from_dataflow(proto, dataflow);
 
     id
 }

@@ -15,7 +15,7 @@ use crate::hir::common::{
     HirBlock, HirCallExpr, HirExpr, HirLValue, HirProto, HirStmt, HirTableField, HirTableKey,
     TempId,
 };
-use crate::hir::promotion::ProtoPromotionFacts;
+use crate::hir::promotion::{HomeSlotKey, ProtoPromotionFacts};
 use crate::readability::ReadabilityOptions;
 
 use self::mentioned::protected_temps_for_nested_stmt;
@@ -59,7 +59,7 @@ fn inline_temps_in_block(
     readability: ReadabilityOptions,
     facts: &ProtoPromotionFacts,
     protected_temps: &BTreeSet<TempId>,
-    inherited_captured_slots: &BTreeSet<usize>,
+    inherited_captured_slots: &BTreeSet<HomeSlotKey>,
 ) -> bool {
     let mut changed = false;
     let mut captured_slots_before_stmt = Vec::with_capacity(block.stmts.len());
@@ -152,7 +152,7 @@ fn inline_temps_in_nested_blocks(
     readability: ReadabilityOptions,
     facts: &ProtoPromotionFacts,
     protected_temps: &BTreeSet<TempId>,
-    inherited_captured_slots: &BTreeSet<usize>,
+    inherited_captured_slots: &BTreeSet<HomeSlotKey>,
 ) -> bool {
     match stmt {
         HirStmt::If(if_stmt) => {
@@ -249,7 +249,7 @@ fn inline_temps_in_nested_blocks(
 fn temp_rebinds_captured_slot(
     temp: TempId,
     facts: &ProtoPromotionFacts,
-    captured_slots: &BTreeSet<usize>,
+    captured_slots: &BTreeSet<HomeSlotKey>,
 ) -> bool {
     facts
         .home_slot(temp)
