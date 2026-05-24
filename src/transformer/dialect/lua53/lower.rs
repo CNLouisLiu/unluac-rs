@@ -154,7 +154,7 @@ impl<'a> ProtoLowerer<'a> {
                 }
                 Lua53Opcode::LoadNil => {
                     let (a, b) = expect_ab(raw_pc, opcode, operands)?;
-                    let len = range_len_inclusive(usize::from(a), usize::from(b));
+                    let len = range_len_inclusive(usize::from(a), usize::from(a) + usize::from(b));
                     let dst = RegRange::new(reg_from_u8(a), len);
                     self.invalidate_written_range(dst);
                     self.emit(
