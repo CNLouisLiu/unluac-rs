@@ -803,28 +803,38 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         downstream_post_loop: Option<BlockRef>,
         target_overrides: &BTreeMap<TempId, HirLValue>,
     ) -> Option<BreakExitBlock> {
-        let candidate = *self.branch_by_header.get(&block)?;
-        let merge = candidate.merge?;
+        // break pad 不一定只是单层 if；`elseif x then ... if a or b then ... end; break`
+        // 这种形状会把短路 header 放在 break 前的 cleanup 里。这里复用 branch lowering
+        // 已有的 short-circuit plan，只要求整段 pad 最终汇到 post-loop，不重新在 loop
+        // 层手写短路识别。
+        let plan = self
+            .try_build_short_circuit_plan(block, Some(post_loop))?
+            .or_else(|| self.build_plain_branch_plan(block))?;
+        let merge = plan.merge?;
         if merge != post_loop && Some(merge) != downstream_post_loop {
             return None;
         }
 
-        let mut blocks = BTreeSet::from([block]);
+        let mut blocks = plan
+            .consumed_headers
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
         let mut stmts = self.lower_block_prefix(block, true, target_overrides)?;
-        let mut cond = self.lower_candidate_cond(block, candidate)?;
+        let mut cond = plan.cond;
         if let Some(entry_expr_overrides) = self.block_entry_expr_overrides(block) {
             rewrite_expr_temps(&mut cond, entry_expr_overrides);
         }
 
         let then_pad = self.lower_break_exit_pad_arm(
-            candidate.then_entry,
+            plan.then_entry,
             merge,
             post_loop,
             downstream_post_loop,
             target_overrides,
         )?;
         blocks.extend(then_pad.blocks.iter().copied());
-        let else_pad = match candidate.else_entry {
+        let else_pad = match plan.else_entry {
             Some(else_entry) => {
                 let pad = self.lower_break_exit_pad_arm(
                     else_entry,

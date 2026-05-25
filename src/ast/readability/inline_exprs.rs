@@ -18,7 +18,7 @@ use self::candidate::{
     stmt_is_alias_initializer_sink, stmt_is_direct_return_value_sink,
 };
 use self::use_sites::rewrite_stmt_use_sites_with_policy;
-use super::super::common::{AstBindingRef, AstBlock, AstModule, AstStmt};
+use super::super::common::{AstBindingRef, AstBlock, AstExpr, AstModule, AstStmt};
 use super::ReadabilityContext;
 use super::binding_flow::BindingUseIndex;
 use super::binding_tree::{
@@ -222,6 +222,11 @@ fn collapse_adjacent_call_alias_runs(block: &mut AstBlock, options: ReadabilityO
         };
 
         let mut rewritten_sink = old_stmts[run_end].clone();
+        let rewrite_policy = if stmt_is_generic_for_call_alias_sink(&old_stmts[run_end]) {
+            InlinePolicy::LoopHeaderCall
+        } else {
+            InlinePolicy::ExtendedCallChain
+        };
         let mut removed = vec![false; run_end - index];
         let mut collapsed_count = 0usize;
 
@@ -257,7 +262,7 @@ fn collapse_adjacent_call_alias_runs(block: &mut AstBlock, options: ReadabilityO
                 candidate,
                 value,
                 options,
-                InlinePolicy::ExtendedCallChain,
+                rewrite_policy,
             ) {
                 rewritten_sink = trial_sink;
                 removed[candidate_index - index] = true;
@@ -288,9 +293,25 @@ fn collapse_adjacent_call_alias_runs(block: &mut AstBlock, options: ReadabilityO
     changed
 }
 
+fn stmt_is_generic_for_call_alias_sink(stmt: &AstStmt) -> bool {
+    matches!(
+        stmt,
+        AstStmt::GenericFor(generic_for)
+            if matches!(
+                generic_for.iterator.as_slice(),
+                [AstExpr::Call(_) | AstExpr::MethodCall(_)]
+            )
+    )
+}
+
 fn stmt_is_terminal_call_alias_sink(stmt: &AstStmt) -> bool {
     match stmt {
         AstStmt::CallStmt(_) => true,
+        // generic-for 的 iterator 表达式也是调用准备 run 的自然终点：
+        // `local iter = ipairs; local items = {...}; for k, v in iter(items) do`
+        // 应恢复成 `for k, v in ipairs({...}) do`。这里只接受单个 iterator call，
+        // 避免把多表达式 iterator list 里的阶段 local 误吞掉。
+        AstStmt::GenericFor(_) => stmt_is_generic_for_call_alias_sink(stmt),
         // `return f(...)` 在字节码里也常由同一段调用准备 run 供给 callee/args。
         // 这里只接单个返回值，避免把别名内联进 `return a(), f(x)` 这类多返回式时
         // 改变 alias 求值相对前置返回值的顺序。

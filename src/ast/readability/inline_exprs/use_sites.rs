@@ -600,6 +600,12 @@ impl InlineSite {
                         self.allows_adjacent_value_sink_local_alias(replacement)
                     }
                 },
+                InlinePolicy::LoopHeaderCall => match origin {
+                    super::super::super::common::AstLocalOrigin::DebugHinted => false,
+                    super::super::super::common::AstLocalOrigin::Recovered => {
+                        self.allows_loop_header_call_local_alias(replacement)
+                    }
+                },
                 InlinePolicy::DirectReturnConstructor => match origin {
                     super::super::super::common::AstLocalOrigin::DebugHinted => false,
                     super::super::super::common::AstLocalOrigin::Recovered => {
@@ -627,6 +633,7 @@ impl InlineSite {
                 InlinePolicy::Conservative => None,
                 InlinePolicy::DirectReturnConstructor => None,
                 InlinePolicy::ExtendedCallChain => Some(options.access_base_inline_max_complexity),
+                InlinePolicy::LoopHeaderCall => Some(options.return_inline_max_complexity),
                 InlinePolicy::MechanicalRun => Some(options.return_inline_max_complexity),
             },
             Self::ComparisonOperand => Some(options.args_inline_max_complexity),
@@ -636,7 +643,10 @@ impl InlineSite {
             },
             Self::ReturnNestedValue => Some(options.return_inline_max_complexity),
             Self::Index => Some(options.index_inline_max_complexity),
-            Self::CallArgNonFinal | Self::CallArgFinal => Some(options.args_inline_max_complexity),
+            Self::CallArgNonFinal | Self::CallArgFinal => match policy {
+                InlinePolicy::LoopHeaderCall => Some(usize::MAX),
+                _ => Some(options.args_inline_max_complexity),
+            },
             // 这里刻意复用 access-base 的阈值：
             // `table.concat(tbl)` 这类“把别名还原回前缀表达式”的可读性取舍，
             // 本质上和 `obj[key]` 里的 base 折叠是同一种源码形状决策。
@@ -746,6 +756,25 @@ impl InlineSite {
                 is_access_base_inline_expr(replacement) || is_lookup_inline_expr(replacement)
             }
             Self::CallCallee => is_call_callee_inline_expr(replacement),
+            Self::ReturnValue | Self::Index => false,
+        }
+    }
+
+    fn allows_loop_header_call_local_alias(self, replacement: &AstExpr) -> bool {
+        match self {
+            Self::CallCallee => is_call_callee_inline_expr(replacement),
+            Self::CallArgNonFinal | Self::CallArgFinal => {
+                is_extended_call_arg_local_alias_expr(replacement)
+                    || is_recallable_inline_expr(replacement)
+                    || is_call_arg_constructor_inline_expr(replacement)
+            }
+            Self::AccessBase => {
+                is_access_base_inline_expr(replacement) || is_lookup_inline_expr(replacement)
+            }
+            Self::Neutral | Self::ComparisonOperand | Self::ReturnNestedValue => {
+                is_extended_neutral_local_alias_expr(replacement)
+                    || is_recallable_inline_expr(replacement)
+            }
             Self::ReturnValue | Self::Index => false,
         }
     }

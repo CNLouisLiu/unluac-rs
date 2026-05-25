@@ -418,7 +418,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         target_overrides: &BTreeMap<TempId, HirLValue>,
     ) -> Option<Option<BlockRef>> {
         let header = self.lowering.cfg.unique_reachable_successor(block)?;
-        let candidate = *self.loop_by_header.get(&header)?;
+        let candidate = self.loop_by_header.get(&header).copied()?;
         if !candidate.reducible
             || candidate.kind_hint != LoopKindHint::GenericForLike
             || candidate.continue_target != Some(header)

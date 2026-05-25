@@ -83,6 +83,7 @@ pub(super) enum InlinePolicy {
     AdjacentValueSink,
     DirectReturnConstructor,
     MechanicalRun,
+    LoopHeaderCall,
 }
 
 impl InlineCandidate {
@@ -121,6 +122,13 @@ impl InlineCandidate {
                 }
                 InlinePolicy::DirectReturnConstructor => {
                     is_direct_return_constructor_inline_expr(expr)
+                }
+                InlinePolicy::LoopHeaderCall => {
+                    is_access_base_inline_expr(expr)
+                        || is_lookup_inline_expr(expr)
+                        || is_recallable_inline_expr(expr)
+                        || is_raw_global_alias_expr(expr)
+                        || super::super::expr_analysis::is_call_arg_constructor_inline_expr(expr)
                 }
                 InlinePolicy::AliasInitializerChain => {
                     is_access_base_inline_expr(expr)

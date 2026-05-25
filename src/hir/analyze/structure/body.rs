@@ -227,14 +227,11 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             self.emit_required_label(block, &mut stmts);
 
             if self.loop_by_header.contains_key(&block) && Some(block) != suppressed_loop_header {
-                let next = self.lower_loop(block, stop, &mut stmts, target_overrides);
-                current = next?;
+                current = self.lower_loop(block, stop, &mut stmts, target_overrides)?;
             } else if self.branch_by_header.contains_key(&block) {
-                let next = self.lower_branch(block, stop, &mut stmts, target_overrides);
-                current = next?;
+                current = self.lower_branch(block, stop, &mut stmts, target_overrides)?;
             } else {
-                let next = self.lower_linear_block(block, stop, &mut stmts, target_overrides);
-                current = next?;
+                current = self.lower_linear_block(block, stop, &mut stmts, target_overrides)?;
             }
         }
 
@@ -672,7 +669,10 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         )
     }
 
-    fn build_plain_branch_plan(&self, block: BlockRef) -> Option<StructuredBranchPlan> {
+    pub(in crate::hir::analyze::structure) fn build_plain_branch_plan(
+        &self,
+        block: BlockRef,
+    ) -> Option<StructuredBranchPlan> {
         let candidate = *self.branch_by_header.get(&block)?;
 
         match candidate.kind {
@@ -693,7 +693,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         }
     }
 
-    fn try_build_short_circuit_plan(
+    pub(in crate::hir::analyze::structure) fn try_build_short_circuit_plan(
         &self,
         header: BlockRef,
         stop: Option<BlockRef>,
@@ -1175,6 +1175,11 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         if then_entry == stop || else_entry == Some(stop) {
             return Some(stop);
         }
+        if let Some(loop_continuation) =
+            self.loop_body_shared_continuation_stop(block, then_entry, else_entry, stop)
+        {
+            return Some(loop_continuation);
+        }
         if merge == Some(stop)
             || merge.is_some_and(|merge| {
                 merge != stop
@@ -1188,6 +1193,95 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         }
 
         merge.or(Some(stop))
+    }
+
+    fn loop_body_shared_continuation_stop(
+        &self,
+        block: BlockRef,
+        then_entry: BlockRef,
+        else_entry: Option<BlockRef>,
+        stop: BlockRef,
+    ) -> Option<BlockRef> {
+        // while 体内的 if/elseif 链经常有两类出口：一类是 break，另一类先汇合到
+        // “本轮收尾”块（例如 i = i + 1）再回到 header。StructureFacts 的分支 merge
+        // 会被 break 出口拉到 loop 外，此时若直接把分支臂降到 header，两条臂会重复
+        // 消费同一个收尾块。这里只在所有非 escape 路径都能到达同一个回 header 块时，
+        // 把该块作为当前分支的局部 stop，让它由外层 loop body 统一消费一次。
+        let loop_context = self.active_loops.last()?;
+        if loop_context.header != stop {
+            return None;
+        }
+        let region = self.branch_regions_by_header.get(&block)?;
+        let continuation = region
+            .structured_blocks
+            .iter()
+            .copied()
+            .filter(|candidate| *candidate != block)
+            .filter(|candidate| *candidate != then_entry && Some(*candidate) != else_entry)
+            .filter(|candidate| {
+                self.lowering.cfg.unique_reachable_successor(*candidate) == Some(stop)
+            })
+            .find(|candidate| {
+                self.branch_arm_reaches_loop_continuation_or_escape(then_entry, *candidate, stop)
+                    && else_entry.is_none_or(|else_entry| {
+                        self.branch_arm_reaches_loop_continuation_or_escape(
+                            else_entry, *candidate, stop,
+                        )
+                    })
+            })?;
+
+        Some(continuation)
+    }
+
+    fn branch_arm_reaches_loop_continuation_or_escape(
+        &self,
+        entry: BlockRef,
+        continuation: BlockRef,
+        stop: BlockRef,
+    ) -> bool {
+        fn visit(
+            lowerer: &StructuredBodyLowerer<'_, '_>,
+            block: BlockRef,
+            continuation: BlockRef,
+            stop: BlockRef,
+            visiting: &mut BTreeSet<BlockRef>,
+            memo: &mut BTreeMap<BlockRef, bool>,
+        ) -> bool {
+            if block == continuation || lowerer.block_is_active_loop_escape(block) {
+                return true;
+            }
+            if block == stop || block == lowerer.lowering.cfg.exit_block {
+                return false;
+            }
+            if !lowerer.lowering.cfg.reachable_blocks.contains(&block) {
+                return false;
+            }
+            if let Some(result) = memo.get(&block).copied() {
+                return result;
+            }
+            if !visiting.insert(block) {
+                return true;
+            }
+
+            let result = lowerer.lowering.cfg.succs[block.index()]
+                .iter()
+                .all(|edge_ref| {
+                    let successor = lowerer.lowering.cfg.edges[edge_ref.index()].to;
+                    visit(lowerer, successor, continuation, stop, visiting, memo)
+                });
+            visiting.remove(&block);
+            memo.insert(block, result);
+            result
+        }
+
+        visit(
+            self,
+            entry,
+            continuation,
+            stop,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
     }
 
     fn branch_can_truncate_to_stop_or_loop_escape(
