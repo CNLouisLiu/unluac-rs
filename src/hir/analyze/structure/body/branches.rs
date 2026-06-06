@@ -98,6 +98,14 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         }
         self.restore_state_checkpoint(checkpoint, stmts);
 
+        let checkpoint = self.checkpoint_state(stmts.len());
+        if let Some(next) =
+            self.try_lower_terminal_else_guard_branch(block, stop, stmts, target_overrides)
+        {
+            return Some(next);
+        }
+        self.restore_state_checkpoint(checkpoint, stmts);
+
         let prefix = self.lower_block_prefix(block, true, target_overrides);
         stmts.extend(prefix?);
 
@@ -117,8 +125,11 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         for header in &plan.consumed_headers {
             self.visited.insert(*header);
         }
-        let branch_stop =
+        let mut branch_stop =
             self.branch_stop_for_region(block, plan.then_entry, plan.else_entry, plan.merge, stop);
+        if let Some(downstream) = self.if_then_downstream_merge_stop(&plan, branch_stop, stop) {
+            branch_stop = Some(downstream);
+        }
         let branch_value_headers = plan
             .consumed_headers
             .iter()
@@ -151,12 +162,26 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                 self.branch_value_else_target_overrides(block, branch_target_overrides)
             })
             .unwrap_or_else(|| target_overrides.clone());
-        let then_stop =
-            self.branch_arm_stop(plan.then_entry, plan.else_entry, plan.merge, branch_stop);
-        let effective_else_entry = plan.else_entry.or_else(|| {
+        let effective_else_entry = plan
+            .else_entry
+            .or_else(|| self.implicit_else_merge_entry(&plan, branch_stop));
+        let then_stop = if plan.else_entry.is_none()
+            && effective_else_entry == plan.merge
+            && branch_stop != plan.merge
+            && Some(plan.then_entry) != branch_stop
+            && plan
+                .merge
+                .is_some_and(|merge| !self.block_is_terminal_exit(merge))
+        {
             plan.merge
-                .filter(|merge| Some(*merge) != branch_stop && self.block_is_terminal_exit(*merge))
-        });
+        } else {
+            self.branch_arm_stop(
+                plan.then_entry,
+                effective_else_entry,
+                plan.merge,
+                branch_stop,
+            )
+        };
         let else_stop = effective_else_entry.and_then(|else_entry| {
             self.branch_arm_stop(else_entry, Some(plan.then_entry), plan.merge, branch_stop)
         });
@@ -210,6 +235,72 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         }
     }
 
+    fn if_then_downstream_merge_stop(
+        &self,
+        plan: &StructuredBranchPlan,
+        branch_stop: Option<BlockRef>,
+        region_stop: Option<BlockRef>,
+    ) -> Option<BlockRef> {
+        let merge = plan.merge?;
+        if plan.else_entry.is_some()
+            || branch_stop != Some(merge)
+            || region_stop == Some(merge)
+            || self.branch_by_header.contains_key(&merge)
+            || self.loop_by_header.contains_key(&merge)
+            || self.block_is_terminal_exit(merge)
+        {
+            return None;
+        }
+        let downstream = self.lowering.cfg.unique_reachable_successor(merge)?;
+        // if-then 的缺席 else 会先经过 merge；但只有 then 臂能绕过 merge 直接到达
+        // downstream 时，merge 才是在语义上独占的隐式 else 块。若 then 臂必须经过
+        // merge，merge 就是两条路径共享的 tail，不能被提前放进 else 臂。
+        self.can_reach_avoiding_block(plan.then_entry, downstream, merge)
+            .then_some(downstream)
+    }
+
+    pub(super) fn can_reach_avoiding_block(
+        &self,
+        from: BlockRef,
+        to: BlockRef,
+        avoided: BlockRef,
+    ) -> bool {
+        if from == avoided || to == avoided {
+            return false;
+        }
+        let mut allowed_blocks = self.lowering.cfg.reachable_blocks.clone();
+        allowed_blocks.remove(&avoided);
+        self.lowering
+            .cfg
+            .can_reach_within(from, to, &allowed_blocks)
+    }
+
+    fn implicit_else_merge_entry(
+        &self,
+        plan: &StructuredBranchPlan,
+        branch_stop: Option<BlockRef>,
+    ) -> Option<BlockRef> {
+        let merge = plan.merge?;
+        if Some(merge) == branch_stop {
+            return None;
+        }
+        if self.block_is_terminal_exit(merge) {
+            return Some(merge);
+        }
+        let stop = branch_stop?;
+        if plan.else_entry.is_none()
+            && plan.then_entry == stop
+            && self.branch_arm_reaches_stop_or_loop_escape(merge, stop, stop)
+        {
+            return Some(merge);
+        }
+        self.lowering
+            .cfg
+            .unique_reachable_successor(merge)
+            .filter(|successor| *successor == stop)
+            .map(|_| merge)
+    }
+
     fn shared_continuation_branch(
         &self,
         plan: &StructuredBranchPlan,
@@ -219,7 +310,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             return None;
         }
         let else_entry = plan.else_entry?;
-        let merge = plan.merge?;
+        let merge = plan.merge.unwrap_or(self.lowering.cfg.exit_block);
         if self.active_loops.last().is_some_and(|loop_context| {
             loop_context.continue_target.is_none()
                 && loop_context.post_loop == merge
@@ -229,6 +320,14 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                         .is_some_and(|region| region.structured_blocks.contains(&stop))
                 })
         }) {
+            return None;
+        }
+        if self.active_loops.last().is_some_and(|loop_context| {
+            loop_context.continue_target == Some(merge) && self.loop_continue_target_is_empty(merge)
+        }) {
+            // 当前 merge 是空的 loop latch 时，一条臂走到 merge 只表示“本轮自然结束”，
+            // 不能把另一条臂误认成 shared continuation。否则 `if a then body else tail end`
+            // 会被拆成 `if a then body; continue end; tail`，Lua 5.1 目标只能退成 goto。
             return None;
         }
         if self.block_has_unstructured_continue_requirement(plan.then_entry)
@@ -244,9 +343,12 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             return None;
         }
 
+        let merge_is_explicit = plan.merge.is_some();
         let then_is_shared = else_entry != merge
             && plan.then_entry != merge
-            && self.entry_must_reach_or_escape_before_boundary(else_entry, plan.then_entry, merge);
+            && (merge_is_explicit
+                || self.loop_preheader_exits_to_shared(else_entry, plan.then_entry))
+            && self.entry_reaches_shared_continuation(else_entry, plan.then_entry, merge);
         if then_is_shared {
             return Some(SharedContinuationBranch {
                 gated_entry: else_entry,
@@ -257,12 +359,87 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
 
         let else_is_shared = else_entry != merge
             && plan.then_entry != merge
-            && self.entry_must_reach_or_escape_before_boundary(plan.then_entry, else_entry, merge);
+            && (merge_is_explicit
+                || self.loop_preheader_exits_to_shared(plan.then_entry, else_entry))
+            && self.entry_reaches_shared_continuation(plan.then_entry, else_entry, merge);
         else_is_shared.then_some(SharedContinuationBranch {
             gated_entry: plan.then_entry,
             shared_entry: else_entry,
             negate_cond: false,
         })
+    }
+
+    fn loop_preheader_exits_to_shared(&self, preheader: BlockRef, shared: BlockRef) -> bool {
+        let Some(header) = self.lowering.cfg.unique_reachable_successor(preheader) else {
+            return false;
+        };
+        self.loop_by_header.get(&header).is_some_and(|candidate| {
+            candidate.preheader == Some(preheader) && candidate.exits.contains(&shared)
+        })
+    }
+
+    fn entry_reaches_shared_continuation(
+        &self,
+        entry: BlockRef,
+        shared: BlockRef,
+        boundary: BlockRef,
+    ) -> bool {
+        self.entry_must_reach_or_escape_before_boundary(entry, shared, boundary)
+            || self.entry_must_reach_shared_or_terminate(entry, shared, boundary)
+    }
+
+    fn entry_must_reach_shared_or_terminate(
+        &self,
+        entry: BlockRef,
+        shared: BlockRef,
+        boundary: BlockRef,
+    ) -> bool {
+        fn visit(
+            lowerer: &StructuredBodyLowerer<'_, '_>,
+            block: BlockRef,
+            shared: BlockRef,
+            boundary: BlockRef,
+            visiting: &mut BTreeSet<BlockRef>,
+            memo: &mut BTreeMap<BlockRef, bool>,
+        ) -> bool {
+            if block == shared {
+                return true;
+            }
+            if block == boundary || !lowerer.lowering.cfg.reachable_blocks.contains(&block) {
+                return false;
+            }
+            if block == lowerer.lowering.cfg.exit_block || lowerer.block_is_terminal_exit(block) {
+                return true;
+            }
+            if let Some(result) = memo.get(&block).copied() {
+                return result;
+            }
+            if !visiting.insert(block) {
+                return true;
+            }
+
+            let result = lowerer.lowering.cfg.succs[block.index()]
+                .iter()
+                .all(|edge_ref| {
+                    let successor = lowerer.lowering.cfg.edges[edge_ref.index()].to;
+                    visit(lowerer, successor, shared, boundary, visiting, memo)
+                });
+            visiting.remove(&block);
+            memo.insert(block, result);
+            result
+        }
+
+        // shared continuation 可能在 generic/numeric loop 的正常出口之后。
+        // 这类 arm 内部存在回边，不能因为看到 cycle 就认定它无法到达 shared；
+        // 只要所有非终止出口都被约束到 shared，就可以把 shared 留给外层顺序消费。
+        visit(
+            self,
+            entry,
+            shared,
+            boundary,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
     }
 
     // 有些 elseif 链在结构事实上已经有共享 tail，但其中几条臂会先跳到外层 merge
@@ -549,6 +726,61 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         rewrite_expr_temps(&mut cond, &temp_expr_overrides(target_overrides));
         stmts.push(branch_stmt(cond, gated_block, None));
         Some(Some(shared.shared_entry))
+    }
+
+    fn try_lower_terminal_else_guard_branch(
+        &mut self,
+        block: BlockRef,
+        stop: Option<BlockRef>,
+        stmts: &mut Vec<HirStmt>,
+        target_overrides: &BTreeMap<TempId, HirLValue>,
+    ) -> Option<Option<BlockRef>> {
+        let stop = stop?;
+        let plan = self.build_plain_branch_plan(block)?;
+        let merge = plan.merge?;
+        if plan.else_entry.is_some()
+            || plan.consumed_headers.len() != 1
+            || !self.block_is_terminal_exit(merge)
+            || !self.can_reach_avoiding_block(plan.then_entry, stop, merge)
+        {
+            return None;
+        }
+
+        // 形如 `if not a then return x end; if not b then return x end; ...`
+        // 的 guard 链在 CFG 里常共享同一个 terminal return block。普通 if/else lowering
+        // 会试图多次 visit 这个 block；这里把 terminal return 克隆进每个 guard 分支，
+        // 语义上每条路径仍只执行一次 return，同时不会让共享 terminal 阻塞后续 guard。
+        let terminal_block = self.lower_terminal_exit_block_clone(merge, target_overrides)?;
+        stmts.extend(self.lower_block_prefix(block, true, target_overrides)?);
+        self.visited.insert(block);
+        self.visited.insert(merge);
+        let mut cond = plan.cond.negate();
+        rewrite_expr_temps(&mut cond, &temp_expr_overrides(target_overrides));
+        stmts.push(branch_stmt(cond, terminal_block, None));
+        Some(Some(plan.then_entry))
+    }
+
+    pub(super) fn lower_terminal_exit_block_clone(
+        &self,
+        block: BlockRef,
+        target_overrides: &BTreeMap<TempId, HirLValue>,
+    ) -> Option<HirBlock> {
+        if !self.block_is_terminal_exit(block) {
+            return None;
+        }
+        let mut stmts = self.lower_block_prefix(block, false, target_overrides)?;
+        let (instr_ref, instr) = self.block_terminator(block)?;
+        let empty_labels = BTreeMap::new();
+        let mut lowered =
+            lower_control_instr(self.lowering, block, instr_ref, instr, &empty_labels);
+        apply_loop_rewrites(&mut lowered, target_overrides);
+        if let Some(entry_expr_overrides) = self.block_entry_expr_overrides(block) {
+            for stmt in &mut lowered {
+                rewrite_stmt_exprs(stmt, entry_expr_overrides);
+            }
+        }
+        stmts.extend(lowered);
+        Some(HirBlock { stmts })
     }
 
     fn try_lower_conditional_reassign_branch(
@@ -993,6 +1225,17 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             && candidate.else_entry != Some(continue_target)
             && candidate.merge != Some(continue_target)
         {
+            return None;
+        }
+        if candidate.merge == Some(continue_target)
+            && candidate.else_entry.is_some()
+            && candidate.then_entry != continue_target
+            && candidate.else_entry != Some(continue_target)
+        {
+            // 显式 if/else 的两条臂都先执行自己的 body，再共同落到当前 loop latch 时，
+            // 这不是源码层的 early-continue，而是普通分支的自然收束。交给普通 branch
+            // lowering 才能把剩余 loop body 保留在 else 臂里；否则 Lua 5.1 目标会被
+            // 平白制造出 `continue`/`goto`。
             return None;
         }
         if self

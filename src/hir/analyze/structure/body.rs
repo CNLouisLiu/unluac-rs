@@ -221,6 +221,14 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                 return None;
             }
             if self.visited.contains(&block) {
+                if self.block_is_terminal_exit(block) {
+                    // 终止 return 块没有 fallthrough；多条源码路径共享同一个 return 尾块时，
+                    // 后到达的路径可以安全克隆这段终止语句，而不应让整颗 proto 回退成
+                    // label/goto fallback。每条运行时路径仍只执行一次 return。
+                    let cloned = self.lower_terminal_exit_block_clone(block, target_overrides)?;
+                    stmts.extend(cloned.stmts);
+                    break;
+                }
                 return None;
             }
 
@@ -387,6 +395,10 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                 let empty_labels = BTreeMap::new();
                 let mut lowered =
                     lower_control_instr(self.lowering, block, instr_ref, instr, &empty_labels);
+                // return/tail-call 虽然是控制终结指令，但它们读取的表达式同样可能来自
+                // loop state。这里必须和普通前缀指令一样应用 target overrides，否则
+                // `return carried` 会退回成未物化的 phi temp。
+                apply_loop_rewrites(&mut lowered, target_overrides);
                 if let Some(entry_expr_overrides) = self.block_entry_expr_overrides(block) {
                     for stmt in &mut lowered {
                         rewrite_stmt_exprs(stmt, entry_expr_overrides);
@@ -952,7 +964,8 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         if Some(header) == stop || consumed_headers.contains(&header) {
             return None;
         }
-        let next = build_branch_short_circuit_plan(self.lowering, header)?;
+        let next = build_branch_short_circuit_plan(self.lowering, header)
+            .or_else(|| self.nestable_plain_branch_plan(header))?;
         if next
             .consumed_headers
             .iter()
@@ -961,6 +974,24 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             return None;
         }
         Some(next)
+    }
+
+    // 普通 branch 只有在作为短路链的下一个出口时才被临时当作两出口计划。
+    // 真正消费前还会由 rewrite_short_circuit_skipped_header_prefixes 校验其 prefix
+    // 能否安全内联进条件，避免把带副作用或不可表达的前置语句静默吞掉。
+    fn nestable_plain_branch_plan(&self, header: BlockRef) -> Option<BranchShortCircuitPlan> {
+        let candidate = self.branch_by_header.get(&header).copied()?;
+        let falsy = match candidate.kind {
+            BranchKind::IfElse => candidate.else_entry?,
+            BranchKind::IfThen | BranchKind::Guard => candidate.merge?,
+        };
+
+        Some(BranchShortCircuitPlan {
+            cond: self.lower_candidate_cond(header, candidate)?,
+            truthy: candidate.then_entry,
+            falsy,
+            consumed_headers: vec![header],
+        })
     }
 
     fn rewrite_short_circuit_skipped_header_prefixes(
@@ -975,9 +1006,6 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             .copied()
             .filter(|consumed| *consumed != header)
             .all(|consumed| {
-                if self.branch_value_merges_by_header.contains_key(&consumed) {
-                    return true;
-                }
                 let Some(prefix) = self.lower_block_prefix(consumed, true, &target_overrides)
                 else {
                     return false;
@@ -1166,9 +1194,25 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         let Some(stop) = stop else {
             return merge;
         };
+        // if-then 没有显式 else 时，缺席的 else 路径本身就是落到 merge。
+        // 即使 merge 是 terminal exit，也必须把它留作分支之后的共享 continuation；
+        // 否则 then 臂会先消费 terminal merge，随后缺席 else 再次进入同一块而重入失败。
         if let Some(merge) = merge
             && merge != stop
+            && else_entry.is_some()
             && self.block_is_terminal_exit(merge)
+        {
+            return Some(stop);
+        }
+        // if-then 的 terminal merge 既可能是共享尾部（`if cond then body end; return`），
+        // 也可能是缺席 else 臂的早返回（`if not cond then return end; continue`）。
+        // 当 then 臂能绕开这个 terminal merge 到达外层 stop 时，merge 只能归入隐式
+        // else；否则把 then 臂截到 merge 会截断后续 loop body。
+        if let Some(merge) = merge
+            && merge != stop
+            && else_entry.is_none()
+            && self.block_is_terminal_exit(merge)
+            && self.can_reach_avoiding_block(then_entry, stop, merge)
         {
             return Some(stop);
         }
@@ -1180,15 +1224,15 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         {
             return Some(loop_continuation);
         }
-        if merge == Some(stop)
-            || merge.is_some_and(|merge| {
-                merge != stop
-                    && self.branch_can_truncate_to_stop_or_loop_escape(
-                        then_entry, else_entry, stop, merge,
-                    )
-            })
-            || self.branch_can_truncate_to_stop(block, then_entry, else_entry, stop)
-        {
+        let same_merge_stop = merge == Some(stop);
+        let can_truncate_to_loop_escape = merge.is_some_and(|merge| {
+            merge != stop
+                && self
+                    .branch_can_truncate_to_stop_or_loop_escape(then_entry, else_entry, stop, merge)
+        });
+        let can_truncate_to_stop =
+            self.branch_can_truncate_to_stop(block, then_entry, else_entry, stop);
+        if same_merge_stop || can_truncate_to_loop_escape || can_truncate_to_stop {
             return Some(stop);
         }
 
@@ -1414,6 +1458,17 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             && entry != merge
         {
             if self.block_is_active_loop_escape(merge) {
+                Some(branch_stop)
+            } else if self
+                .loop_by_header
+                .get(&merge)
+                .is_some_and(|loop_candidate| loop_candidate.preheader == Some(entry))
+            {
+                // 分支的一臂直接回到外层 loop continue，另一臂入口可能正好是嵌套
+                // for-loop 的 preheader；此时 postdom 给出的 merge 是内层 loop header，
+                // 但它语义上属于这一条 arm，而不是两臂共享 tail。若把 arm 截到
+                // header 前，generic-for preheader lowering 就没有机会运行，整段会退回
+                // label/goto。
                 Some(branch_stop)
             } else {
                 Some(merge)
