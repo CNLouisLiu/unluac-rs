@@ -28,6 +28,8 @@ struct SharedContinuationBranch {
     negate_cond: bool,
 }
 
+type StatementValueMergeOutput<'c> = (&'c ShortCircuitCandidate, TempId);
+
 impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
     pub(super) fn lower_branch(
         &mut self,
@@ -1046,28 +1048,18 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             return None;
         }
 
-        // 短路值合流的 lower_value_merge_leaf 不会传递 target_overrides 给
-        // lower_block_prefix，导致循环 state plan 或外层 BVM 的写入重定向被跳过。
-        // 如果值合流涉及的 def（含 entry_defs 和 leaf 的 value_incomings）中有任何
-        // 一个被 target_overrides 接管，应退让给普通分支降级。
-        if value_merge_defs_are_overridden(self.lowering, short, target_overrides) {
-            return None;
-        }
-
-        let target_temp = *self
-            .lowering
-            .bindings
-            .phi_temps
-            .get(short.result_phi_id?.index())?;
+        let outputs = self.statement_value_merge_outputs(short)?;
         let mut short_stmts = self.lower_block_prefix(block, true, target_overrides)?;
         short_stmts.extend(
-            self.lower_value_merge_node(short, short.entry, target_temp, true)?
+            self.lower_value_merge_node(short, short.entry, &outputs, true, target_overrides)?
                 .stmts,
         );
 
         self.visited.insert(block);
         self.visited.extend(value_merge_skipped_blocks(short));
-        self.overrides.suppress_phi(short.result_phi_id?);
+        for (output_short, _) in &outputs {
+            self.overrides.suppress_phi(output_short.result_phi_id?);
+        }
         stmts.extend(short_stmts);
 
         // SC 值合流只处理了 result_phi 对应的一个寄存器。如果同一 header 下还有
@@ -1083,16 +1075,35 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                     self.build_secondary_value_merge_decision(short, value.reg)
                 {
                     let bvm_temp = self.lowering.bindings.phi_temps[value.phi_id.index()];
-                    stmts.push(assign_stmt(
-                        vec![HirLValue::Temp(bvm_temp)],
-                        vec![decision_expr],
-                    ));
+                    let mut stmt =
+                        assign_stmt(vec![HirLValue::Temp(bvm_temp)], vec![decision_expr]);
+                    apply_loop_rewrites(std::slice::from_mut(&mut stmt), target_overrides);
+                    stmts.push(stmt);
                     self.overrides.suppress_phi(value.phi_id);
                 }
             }
         }
 
         Some(Some(merge))
+    }
+
+    fn statement_value_merge_outputs(
+        &self,
+        short: &'b ShortCircuitCandidate,
+    ) -> Option<Vec<StatementValueMergeOutput<'b>>> {
+        let mut outputs = Vec::new();
+        for candidate in &self.lowering.structure.short_circuit_candidates {
+            if !same_statement_value_merge_tree(short, candidate) {
+                continue;
+            }
+            let temp = *self
+                .lowering
+                .bindings
+                .phi_temps
+                .get(candidate.result_phi_id?.index())?;
+            outputs.push((candidate, temp));
+        }
+        (!outputs.is_empty()).then_some(outputs)
     }
 
     fn try_lower_value_merge_branch(
@@ -1701,20 +1712,33 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         &self,
         short: &ShortCircuitCandidate,
         node_ref: ShortCircuitNodeRef,
-        target_temp: TempId,
+        outputs: &[StatementValueMergeOutput<'_>],
         prefix_emitted: bool,
+        target_overrides: &BTreeMap<TempId, HirLValue>,
     ) -> Option<HirBlock> {
         let node = short.nodes.get(node_ref.index())?;
         let mut stmts = Vec::new();
 
         if !prefix_emitted {
-            stmts.extend(self.lower_block_prefix(node.header, true, &BTreeMap::new())?);
+            stmts.extend(self.lower_block_prefix(node.header, true, target_overrides)?);
         }
 
-        let cond = lower_short_circuit_subject(self.lowering, node.header)?;
-        let truthy =
-            self.lower_value_merge_target(short, node.header, &node.truthy, target_temp)?;
-        let falsy = self.lower_value_merge_target(short, node.header, &node.falsy, target_temp)?;
+        let mut cond = lower_short_circuit_subject(self.lowering, node.header)?;
+        rewrite_expr_temps(&mut cond, &temp_expr_overrides(target_overrides));
+        let truthy = self.lower_value_merge_target(
+            short,
+            node.header,
+            &node.truthy,
+            outputs,
+            target_overrides,
+        )?;
+        let falsy = self.lower_value_merge_target(
+            short,
+            node.header,
+            &node.falsy,
+            outputs,
+            target_overrides,
+        )?;
         stmts.push(branch_stmt(cond, truthy, Some(falsy)));
 
         Some(HirBlock { stmts })
@@ -1748,14 +1772,15 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         short: &ShortCircuitCandidate,
         current_header: BlockRef,
         target: &ShortCircuitTarget,
-        target_temp: TempId,
+        outputs: &[StatementValueMergeOutput<'_>],
+        target_overrides: &BTreeMap<TempId, HirLValue>,
     ) -> Option<HirBlock> {
         match target {
             ShortCircuitTarget::Node(next_ref) => {
-                self.lower_value_merge_node(short, *next_ref, target_temp, false)
+                self.lower_value_merge_node(short, *next_ref, outputs, false, target_overrides)
             }
             ShortCircuitTarget::Value(block) => {
-                self.lower_value_merge_leaf(short, current_header, *block, target_temp)
+                self.lower_value_merge_leaf(current_header, *block, outputs, target_overrides)
             }
             ShortCircuitTarget::TruthyExit | ShortCircuitTarget::FalsyExit => None,
         }
@@ -1763,25 +1788,29 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
 
     fn lower_value_merge_leaf(
         &self,
-        short: &ShortCircuitCandidate,
         current_header: BlockRef,
         block: BlockRef,
-        target_temp: TempId,
+        outputs: &[StatementValueMergeOutput<'_>],
+        target_overrides: &BTreeMap<TempId, HirLValue>,
     ) -> Option<HirBlock> {
         let mut stmts = if block == current_header {
             Vec::new()
         } else {
-            self.lower_block_prefix(block, false, &BTreeMap::new())?
+            self.lower_block_prefix(block, false, target_overrides)?
         };
-        let value = if block == current_header
-            && header_subject_is_value_carrier(self.lowering, current_header, short.result_reg)
-        {
-            // Truthiness 测试在 result_reg 上：subject 运行时值即保留值。
-            lower_short_circuit_subject(self.lowering, block)?
-        } else {
-            lower_materialized_value_leaf_expr(self.lowering, short, block)?
-        };
-        stmts.push(assign_stmt(vec![HirLValue::Temp(target_temp)], vec![value]));
+        for (short, target_temp) in outputs {
+            let value = if block == current_header
+                && header_subject_is_value_carrier(self.lowering, current_header, short.result_reg)
+            {
+                // Truthiness 测试在 result_reg 上：subject 运行时值即保留值。
+                lower_short_circuit_subject(self.lowering, block)?
+            } else {
+                lower_materialized_value_leaf_expr(self.lowering, short, block)?
+            };
+            let mut stmt = assign_stmt(vec![HirLValue::Temp(*target_temp)], vec![value]);
+            apply_loop_rewrites(std::slice::from_mut(&mut stmt), target_overrides);
+            stmts.push(stmt);
+        }
 
         Some(HirBlock { stmts })
     }
@@ -1886,19 +1915,9 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
     }
 }
 
-/// 如果值合流候选的 entry_defs 中有任一 def 的 temp 已被 target_overrides 接管，
-/// 说明该 def 的写入经由循环 state plan 被重定向到了 state 变量。此时如果仍走
-/// SC value-merge 的快捷路径，lower_value_merge_leaf 会用空 override map 调用
-/// lower_block_prefix，导致 state 写入重定向被跳过。
-/// 检查值型短路候选内是否有被 target_overrides 接管的 def。
-///
-/// 包含两类来源：
-/// 1. `entry_defs`——从 SC 外部流入的初始值，作为值合流某条路径的"保留原值"语义；
-/// 2. `value_incomings` 中的 leaf defs——SC 内部叶子块写入 result_reg 的具体值。
-///
-/// 当外层 BVM 通过 target_overrides 要求将这些 def 的写入重定向到合并 temp 时，
-/// SC 快捷路径因为不会传递 target_overrides 给叶子展开逻辑，会导致重定向写入丢失。
-/// 此时应退让给普通分支降级，在 apply_loop_rewrites / BVM 管道中正确路由。
+/// 条件重赋值路径直接把值合流压平成单个 temp 的赋值序列，无法像
+/// statement value-merge 那样逐个叶子传递 target_overrides；当候选 defs
+/// 已被外层 state/BVM 接管时，需要退回普通 branch lowering。
 fn value_merge_defs_are_overridden(
     lowering: &ProtoLowering<'_>,
     short: &ShortCircuitCandidate,
@@ -1919,6 +1938,43 @@ fn value_merge_defs_are_overridden(
             .value_incomings
             .iter()
             .any(|inc| inc.defs.iter().any(is_overridden))
+}
+
+fn same_statement_value_merge_tree(
+    base: &ShortCircuitCandidate,
+    candidate: &ShortCircuitCandidate,
+) -> bool {
+    if !base.reducible
+        || !candidate.reducible
+        || base.header != candidate.header
+        || base.blocks != candidate.blocks
+        || base.entry != candidate.entry
+        || base.nodes.len() != candidate.nodes.len()
+        || base.result_phi_id.is_none()
+        || candidate.result_phi_id.is_none()
+        || base.result_reg.is_none()
+        || candidate.result_reg.is_none()
+    {
+        return false;
+    }
+    let (ShortCircuitExit::ValueMerge(base_merge), ShortCircuitExit::ValueMerge(candidate_merge)) =
+        (&base.exit, &candidate.exit)
+    else {
+        return false;
+    };
+    if base_merge != candidate_merge {
+        return false;
+    }
+
+    base.nodes
+        .iter()
+        .zip(&candidate.nodes)
+        .all(|(base, candidate)| {
+            base.id == candidate.id
+                && base.header == candidate.header
+                && base.truthy == candidate.truthy
+                && base.falsy == candidate.falsy
+        })
 }
 
 fn branch_exit_value_assignment_leaf_stmts_are_safe(
