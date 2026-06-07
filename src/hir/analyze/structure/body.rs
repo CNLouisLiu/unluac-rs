@@ -1246,6 +1246,11 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         merge: Option<BlockRef>,
         stop: Option<BlockRef>,
     ) -> Option<BlockRef> {
+        if stop.is_none() {
+            return merge.or_else(|| {
+                self.branch_shared_continuation_stop(block, then_entry, else_entry, merge, None)
+            });
+        }
         let Some(stop) = stop else {
             return merge;
         };
@@ -1279,6 +1284,11 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         {
             return Some(loop_continuation);
         }
+        if let Some(shared_continuation) =
+            self.branch_shared_continuation_stop(block, then_entry, else_entry, merge, Some(stop))
+        {
+            return Some(shared_continuation);
+        }
         let same_merge_stop = merge == Some(stop);
         let can_truncate_to_loop_escape = merge.is_some_and(|merge| {
             merge != stop
@@ -1292,6 +1302,127 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         }
 
         merge.or(Some(stop))
+    }
+
+    fn branch_shared_continuation_stop(
+        &self,
+        block: BlockRef,
+        then_entry: BlockRef,
+        else_entry: Option<BlockRef>,
+        merge: Option<BlockRef>,
+        region_stop: Option<BlockRef>,
+    ) -> Option<BlockRef> {
+        let else_entry = else_entry?;
+        if let Some(merge) = merge {
+            return self
+                .branch_shared_continuation_candidate_is_valid(
+                    block,
+                    then_entry,
+                    else_entry,
+                    merge,
+                    region_stop,
+                )
+                .then_some(merge);
+        }
+
+        self.lowering
+            .cfg
+            .block_order
+            .iter()
+            .copied()
+            .find(|candidate| {
+                self.lowering.cfg.can_reach(then_entry, *candidate)
+                    && self.lowering.cfg.can_reach(else_entry, *candidate)
+                    && self.branch_shared_continuation_candidate_is_valid(
+                        block,
+                        then_entry,
+                        else_entry,
+                        *candidate,
+                        region_stop,
+                    )
+            })
+    }
+
+    fn branch_shared_continuation_candidate_is_valid(
+        &self,
+        block: BlockRef,
+        then_entry: BlockRef,
+        else_entry: BlockRef,
+        candidate: BlockRef,
+        region_stop: Option<BlockRef>,
+    ) -> bool {
+        if candidate == block
+            || candidate == then_entry
+            || Some(candidate) == region_stop
+            || candidate == self.lowering.cfg.exit_block
+            || self.block_is_terminal_exit(candidate)
+            || self.block_is_active_loop_escape(candidate)
+        {
+            return false;
+        }
+        if let Some(region_stop) = region_stop
+            && (self.lowering.cfg.can_reach(region_stop, candidate)
+                || !self.lowering.cfg.can_reach(candidate, region_stop))
+        {
+            return false;
+        }
+
+        let boundary = region_stop.unwrap_or(self.lowering.cfg.exit_block);
+        self.branch_arm_reaches_shared_continuation_or_terminate(then_entry, candidate, boundary)
+            && self.branch_arm_reaches_shared_continuation_or_terminate(
+                else_entry, candidate, boundary,
+            )
+    }
+
+    fn branch_arm_reaches_shared_continuation_or_terminate(
+        &self,
+        entry: BlockRef,
+        continuation: BlockRef,
+        boundary: BlockRef,
+    ) -> bool {
+        fn visit(
+            lowerer: &StructuredBodyLowerer<'_, '_>,
+            block: BlockRef,
+            continuation: BlockRef,
+            boundary: BlockRef,
+            visiting: &mut BTreeSet<BlockRef>,
+            memo: &mut BTreeMap<BlockRef, bool>,
+        ) -> bool {
+            if block == continuation {
+                return true;
+            }
+            if block == boundary || !lowerer.lowering.cfg.reachable_blocks.contains(&block) {
+                return false;
+            }
+            if block == lowerer.lowering.cfg.exit_block || lowerer.block_is_terminal_exit(block) {
+                return true;
+            }
+            if let Some(result) = memo.get(&block).copied() {
+                return result;
+            }
+            if !visiting.insert(block) {
+                return true;
+            }
+
+            let result = lowerer.lowering.cfg.succs[block.index()]
+                .iter()
+                .all(|edge_ref| {
+                    let successor = lowerer.lowering.cfg.edges[edge_ref.index()].to;
+                    visit(lowerer, successor, continuation, boundary, visiting, memo)
+                });
+            visiting.remove(&block);
+            memo.insert(block, result);
+            result
+        }
+
+        visit(
+            self,
+            entry,
+            continuation,
+            boundary,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
     }
 
     fn loop_body_shared_continuation_stop(
