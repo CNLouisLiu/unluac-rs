@@ -240,9 +240,8 @@ fn build_branch_short_circuit_plan_from_candidate(
     } else {
         decision
     };
-    if decision_references_forbidden_candidate_temps(lowering, short, &decision, &allowed_blocks) {
-        return None;
-    }
+    // 被消费 header 的 prefix temp 会在 structured body 层统一校验并重写；
+    // 这里保留候选，让外层有机会先把相邻短路链继续合并。
     let cond = finalize_condition_decision_expr(decision);
 
     Some(BranchShortCircuitPlan {

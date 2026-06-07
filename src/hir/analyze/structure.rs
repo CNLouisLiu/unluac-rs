@@ -18,6 +18,7 @@ use crate::hir::common::{
     HirGenericFor, HirIf, HirLValue, HirLabel, HirLabelId, HirLogicalExpr, HirNumericFor,
     HirRepeat, HirStmt, HirWhile, TempId,
 };
+use crate::hir::decision::finalize_condition_decision_expr;
 use crate::structure::{
     BranchCandidate, BranchKind, BranchRegionFact, BranchValueMergeArm, BranchValueMergeCandidate,
     BranchValueMergeValue, GotoReason, LoopCandidate, LoopKindHint, LoopValueArm, LoopValueMerge,
@@ -30,8 +31,9 @@ use super::exprs::{
     expr_for_reg_at_block_exit, expr_for_reg_use,
 };
 use super::short_circuit::{
-    BranchShortCircuitPlan, build_branch_short_circuit_plan, build_conditional_reassign_plan,
-    consumed_value_merge_subject_instrs, header_subject_is_value_carrier,
+    BranchShortCircuitPlan, build_branch_decision_expr_mixed_eval, build_branch_short_circuit_plan,
+    build_conditional_reassign_plan, consumed_value_merge_subject_instrs,
+    expr_references_forbidden_candidate_temps, header_subject_is_value_carrier,
     lower_materialized_value_leaf_expr, lower_short_circuit_subject,
     recover_short_value_merge_expr_recovery_with_allowed_blocks,
     recover_short_value_merge_expr_with_allowed_blocks, value_merge_candidate_by_header,
