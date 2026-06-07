@@ -11,6 +11,7 @@ mod rewrites;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::ast::AstTargetDialect;
 use crate::cfg::{BlockRef, PhiId};
 use crate::hir::common::{
     HirBlock, HirDecisionExpr, HirDecisionNode, HirDecisionNodeRef, HirDecisionTarget, HirExpr,
@@ -50,6 +51,9 @@ use rewrites::{
 };
 
 /// 尝试基于现有结构候选恢复一个更接近源码的 HIR block。
-pub(super) fn try_build_structured_body(lowering: &ProtoLowering<'_>) -> Option<HirBlock> {
-    body::build_structured_body(lowering)
+pub(super) fn try_build_structured_body(
+    target: AstTargetDialect,
+    lowering: &ProtoLowering<'_>,
+) -> Option<HirBlock> {
+    body::build_structured_body(target, lowering)
 }

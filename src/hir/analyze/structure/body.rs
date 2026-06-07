@@ -10,7 +10,10 @@ use super::rewrites::expr_has_temp_ref_in;
 use super::*;
 
 /// 尝试基于现有结构候选恢复一个更接近源码的 HIR block。
-pub(super) fn build_structured_body(lowering: &ProtoLowering<'_>) -> Option<HirBlock> {
+pub(super) fn build_structured_body(
+    target: AstTargetDialect,
+    lowering: &ProtoLowering<'_>,
+) -> Option<HirBlock> {
     if lowering
         .structure
         .goto_requirements
@@ -20,16 +23,13 @@ pub(super) fn build_structured_body(lowering: &ProtoLowering<'_>) -> Option<HirB
         return None;
     }
 
-    let mut lowerer = StructuredBodyLowerer::new(lowering);
+    let mut lowerer = StructuredBodyLowerer::new(target, lowering);
     let body = lowerer.lower_region(lowering.cfg.entry_block, None, &BTreeMap::new())?;
-    if lowerer.all_reachable_blocks_covered() {
-        Some(body)
-    } else {
-        None
-    }
+    lowerer.all_reachable_blocks_covered().then_some(body)
 }
 
 pub(super) struct StructuredBodyLowerer<'a, 'b> {
+    pub(super) target: AstTargetDialect,
     pub(super) lowering: &'b ProtoLowering<'a>,
     pub(super) branch_by_header: BTreeMap<BlockRef, &'b BranchCandidate>,
     pub(super) branch_regions_by_header: BTreeMap<BlockRef, &'b BranchRegionFact>,
@@ -122,7 +122,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         stmts.truncate(checkpoint.stmts_len);
     }
 
-    fn new(lowering: &'b ProtoLowering<'a>) -> Self {
+    fn new(target: AstTargetDialect, lowering: &'b ProtoLowering<'a>) -> Self {
         let branch_by_header = lowering
             .structure
             .branch_candidates
@@ -164,6 +164,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             .collect();
 
         Self {
+            target,
             lowering,
             branch_by_header,
             branch_regions_by_header,
@@ -188,6 +189,16 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             .filter(|block| self.lowering.cfg.reachable_blocks.contains(block))
             .filter(|block| **block != self.lowering.cfg.exit_block)
             .all(|block| self.visited.contains(block))
+    }
+
+    pub(super) fn can_emit_continue_stmt(&self) -> bool {
+        self.target.caps.continue_stmt
+    }
+
+    pub(super) fn explicit_continue_block(&self) -> Option<HirBlock> {
+        self.can_emit_continue_stmt().then(|| HirBlock {
+            stmts: vec![HirStmt::Continue],
+        })
     }
 
     pub(super) fn lower_region(
@@ -250,7 +261,9 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         let loop_context = self.active_loops.last()?.clone();
         if loop_context.continue_target == Some(block) && self.loop_continue_target_is_empty(block)
         {
-            return Some(vec![HirStmt::Continue]);
+            return self
+                .can_emit_continue_stmt()
+                .then(|| vec![HirStmt::Continue]);
         }
         if block == loop_context.post_loop || Some(block) == loop_context.downstream_post_loop {
             return Some(vec![HirStmt::Break]);
@@ -434,6 +447,9 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                 && loop_context.continue_sources.contains(&block)
                 && self.loop_continue_target_is_empty(target)
             {
+                if !self.can_emit_continue_stmt() {
+                    return None;
+                }
                 stmts.push(HirStmt::Continue);
                 return Some(None);
             }

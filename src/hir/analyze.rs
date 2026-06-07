@@ -11,7 +11,7 @@ mod lower;
 mod short_circuit;
 mod structure;
 
-use self::lower::{ChildAnalyses, LowerArtifacts, lower_proto};
+use self::lower::{LowerArtifacts, lower_proto};
 use super::simplify::{PassDumpConfig, simplify_hir};
 use crate::decompile::{DecompileContext, DecompileError, DecompileState};
 use crate::hir::common::HirModule;
@@ -28,29 +28,10 @@ pub(crate) fn analyze_hir(
     state: &mut DecompileState,
     context: &DecompileContext<'_>,
 ) -> Result<(), DecompileError> {
-    let lowered = state.lowered.as_ref().unwrap();
-    let cfg = state.cfg.as_ref().unwrap();
-    let graph_facts = state.graph_facts.as_ref().unwrap();
-    let dataflow = state.dataflow.as_ref().unwrap();
-    let structure_facts = state.structure_facts.as_ref().unwrap();
-    let child_analyses = ChildAnalyses {
-        cfg_graphs: &cfg.children,
-        graph_facts: &graph_facts.children,
-        dataflow: &dataflow.children,
-        structure: &structure_facts.children,
-    };
     let mut artifacts = LowerArtifacts::default();
-    let entry = context.timings.record("lower", || {
-        lower_proto(
-            &lowered.main,
-            &cfg.cfg,
-            graph_facts,
-            dataflow,
-            structure_facts,
-            child_analyses,
-            &mut artifacts,
-        )
-    });
+    let entry = context
+        .timings
+        .record("lower", || lower_proto(state, context, &mut artifacts));
 
     let mut module = HirModule {
         entry,

@@ -1272,9 +1272,6 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             return Some(None);
         }
 
-        let continue_block = HirBlock {
-            stmts: vec![HirStmt::Continue],
-        };
         if let Some(else_entry) = candidate.else_entry {
             let non_continue_entry = if candidate.then_entry == continue_target {
                 else_entry
@@ -1295,6 +1292,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                     ));
                     return Some(None);
                 }
+                let continue_block = self.explicit_continue_block()?;
                 let stmt = if candidate.then_entry == continue_target {
                     branch_stmt(
                         continue_cond,
@@ -1331,6 +1329,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
                 return Some(Some(continue_target));
             }
 
+            let continue_block = self.explicit_continue_block()?;
             let branch_stop = self.branch_stop_for_region(
                 block,
                 candidate.then_entry,
@@ -1387,6 +1386,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
             }
             let non_continue_block =
                 self.lower_region(non_continue_entry, stop, target_overrides)?;
+            let continue_block = self.explicit_continue_block()?;
             stmts.push(branch_stmt(
                 continue_cond,
                 continue_block,
@@ -1420,6 +1420,7 @@ impl<'a, 'b> StructuredBodyLowerer<'a, 'b> {
         }
 
         let merge = candidate.merge.or(stop)?;
+        let continue_block = self.explicit_continue_block()?;
         stmts.push(branch_stmt(continue_cond, continue_block, None));
         if merge == self.lowering.cfg.exit_block {
             Some(None)

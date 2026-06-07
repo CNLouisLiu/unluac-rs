@@ -24,7 +24,9 @@ use super::short_circuit::{
     recover_short_value_merge_expr_with_allowed_blocks, value_merge_candidates_in_block,
 };
 use super::structure::try_build_structured_body;
+use crate::ast::AstTargetDialect;
 use crate::cfg::{BlockRef, Cfg, CfgGraph, DataflowFacts, GraphFacts, PhiId};
+use crate::decompile::{DecompileContext, DecompileState};
 use crate::hir::common::{
     HirBlock, HirCallExpr, HirCallStmt, HirCapture, HirClose, HirClosureExpr, HirExpr, HirLValue,
     HirLabel, HirLabelId, HirProto, HirProtoRef, HirStmt, HirTableSetList, HirToBeClosed,
@@ -64,14 +66,6 @@ pub(super) struct ProtoLowering<'a> {
     pub(super) dead_phis: BTreeSet<PhiId>,
 }
 
-#[derive(Clone, Copy)]
-pub(super) struct ChildAnalyses<'a> {
-    pub(super) cfg_graphs: &'a [CfgGraph],
-    pub(super) graph_facts: &'a [GraphFacts],
-    pub(super) dataflow: &'a [DataflowFacts],
-    pub(super) structure: &'a [StructureFacts],
-}
-
 #[derive(Default)]
 pub(super) struct LowerArtifacts {
     pub(super) protos: Vec<HirProto>,
@@ -79,14 +73,36 @@ pub(super) struct LowerArtifacts {
 }
 
 pub(super) fn lower_proto(
+    state: &DecompileState,
+    context: &DecompileContext<'_>,
+    artifacts: &mut LowerArtifacts,
+) -> HirProtoRef {
+    let lowered = state.lowered.as_ref().unwrap();
+    let cfg = state.cfg.as_ref().unwrap();
+    let graph_facts = state.graph_facts.as_ref().unwrap();
+    let dataflow = state.dataflow.as_ref().unwrap();
+    let structure = state.structure_facts.as_ref().unwrap();
+    lower_proto_node(
+        context.requested_target,
+        &lowered.main,
+        cfg,
+        graph_facts,
+        dataflow,
+        structure,
+        artifacts,
+    )
+}
+
+fn lower_proto_node(
+    target: AstTargetDialect,
     proto: &LoweredProto,
-    cfg: &Cfg,
+    cfg_graph: &CfgGraph,
     graph_facts: &GraphFacts,
     dataflow: &DataflowFacts,
     structure: &StructureFacts,
-    child_analyses: ChildAnalyses<'_>,
     artifacts: &mut LowerArtifacts,
 ) -> HirProtoRef {
+    let cfg = &cfg_graph.cfg;
     let id = HirProtoRef(artifacts.protos.len());
     artifacts.protos.push(empty_proto(id));
     artifacts
@@ -96,24 +112,19 @@ pub(super) fn lower_proto(
     let child_refs = proto
         .children
         .iter()
-        .zip(child_analyses.cfg_graphs.iter())
-        .zip(child_analyses.graph_facts.iter())
-        .zip(child_analyses.dataflow.iter())
-        .zip(child_analyses.structure.iter())
+        .zip(cfg_graph.children.iter())
+        .zip(graph_facts.children.iter())
+        .zip(dataflow.children.iter())
+        .zip(structure.children.iter())
         .map(
             |((((child_proto, child_cfg), child_graph_facts), child_dataflow), child_structure)| {
-                lower_proto(
+                lower_proto_node(
+                    target,
                     child_proto,
-                    &child_cfg.cfg,
+                    child_cfg,
                     child_graph_facts,
                     child_dataflow,
                     child_structure,
-                    ChildAnalyses {
-                        cfg_graphs: &child_cfg.children,
-                        graph_facts: &child_graph_facts.children,
-                        dataflow: &child_dataflow.children,
-                        structure: &child_structure.children,
-                    },
                     artifacts,
                 )
             },
@@ -146,7 +157,7 @@ pub(super) fn lower_proto(
         upvalue_debug_hints: lowering.bindings.upvalue_debug_hints.clone(),
         temps: lowering.bindings.temps.clone(),
         temp_debug_locals: lowering.bindings.temp_debug_locals.clone(),
-        body: build_proto_body(&lowering),
+        body: build_proto_body(target, &lowering),
         children: child_refs,
     };
     artifacts.promotion_facts[id.index()] = ProtoPromotionFacts::from_dataflow(proto, dataflow);
@@ -154,8 +165,8 @@ pub(super) fn lower_proto(
     id
 }
 
-fn build_proto_body(lowering: &ProtoLowering<'_>) -> HirBlock {
-    if let Some(body) = try_build_structured_body(lowering) {
+fn build_proto_body(target: AstTargetDialect, lowering: &ProtoLowering<'_>) -> HirBlock {
+    if let Some(body) = try_build_structured_body(target, lowering) {
         body
     } else {
         lower_label_goto_body(lowering)
